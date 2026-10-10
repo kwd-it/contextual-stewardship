@@ -4,7 +4,7 @@ Verified against the repositories on 2026-10-10. Anything marked *assumption* wa
 
 ## Roles
 
-**ContextualWP** (WordPress plugin, PHP, v1.3.5) is the foundation. It exposes a site's structure and content as machine-readable context: an MCP-style manifest, paginated context listing and retrieval, a schema endpoint with an interpretation layer, and editor-safe ACF field metadata. It also hosts the sector pack registry that lets other plugins extend that context without forking core. Its AI-assisted admin tools (provider settings, `/generate_context`, global chat, ACF AskAI) are optional and secondary; they are the only place in the ecosystem that calls AI providers.
+**ContextualWP** (WordPress plugin, PHP, v1.3.6) is the foundation. It exposes a site's structure and content as machine-readable context: an MCP-style manifest, paginated context listing and retrieval, a schema endpoint with an interpretation layer, and editor-safe ACF field metadata. It also hosts the sector pack registry that lets other plugins extend that context without forking core. Its AI-assisted admin tools (provider settings, `/generate_context`, global chat, ACF AskAI) are optional and secondary; they are the only place in the ecosystem that calls AI providers.
 
 **ContextualWP Housebuilder Pack** (WordPress plugin, PHP, v0.4.8) is the first sector pack and the public reference for how packs work. It registers with core, infers housebuilder structure (developments, plots, house types) from a site's existing post types and taxonomies without registering any of its own, adds relationship hints and interpretation blocks to core's endpoints, and serves a single authenticated plots feed with asset-completeness signals.
 
@@ -44,7 +44,7 @@ One UK housebuilder website runs all three in production. It is the source of mo
 
 The Console's Cursor rules remain its expressed conventions; its `CLAUDE.md` points back to them and records the landing rule as the authorisation they require.
 
-The pull requests implementing D-008 to D-010 ([contextualwp #1](https://github.com/kwd-it/contextualwp/pull/1), [contextualwp-housebuilder-pack #1](https://github.com/kwd-it/contextualwp-housebuilder-pack/pull/1), [contextual-console #1](https://github.com/kwd-it/contextual-console/pull/1)) were merged on 2026-10-10 under the product owner's explicit authorisation for those pull requests. None has been released yet: the latest tags are still ContextualWP v1.3.5, Housebuilder Pack v0.4.8 and Console v1.2.1.
+The pull requests implementing D-008 to D-010 ([contextualwp #1](https://github.com/kwd-it/contextualwp/pull/1), [contextualwp-housebuilder-pack #1](https://github.com/kwd-it/contextualwp-housebuilder-pack/pull/1), [contextual-console #1](https://github.com/kwd-it/contextual-console/pull/1)) were merged on 2026-10-10 under the product owner's explicit authorisation for those pull requests. ContextualWP released them, together with the first autonomous maintenance batch, as v1.3.6 on 2026-10-10. The Housebuilder Pack and Console changes are not yet released; their latest tags are still v0.4.8 and v1.2.1.
 
 ## Development history
 
