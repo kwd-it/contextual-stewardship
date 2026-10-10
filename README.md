@@ -24,6 +24,7 @@ The three product repositories each hold their own code, commands and convention
 | [governance/cross-project-stewardship.md](governance/cross-project-stewardship.md) | Handling changes that touch more than one product |
 | [governance/ai-provider-currency.md](governance/ai-provider-currency.md) | Keeping AI provider, model and API assumptions current without blind upgrades |
 | [governance/proposal-lifecycle.md](governance/proposal-lifecycle.md) | How proposed, approved, blocked and completed work is tracked |
+| [governance/routine.md](governance/routine.md) | The weekly Contextual Product Steward Routine: schedule, boundaries and safe stewardship mode |
 | [ecosystem/overview.md](ecosystem/overview.md) | Product roles, data flow and development conventions |
 | [ecosystem/compatibility.md](ecosystem/compatibility.md) | Cross-project interfaces and the version compatibility matrix |
 | [assessments/](assessments/) | Dated health assessments of the ecosystem |
@@ -35,7 +36,7 @@ Product code, architecture notes, build and test commands, implementation conven
 
 ## Status
 
-Established on 2026-10-10 with the first ecosystem assessment. No automated stewardship schedule exists yet.
+Established on 2026-10-10 with the first ecosystem assessment. The first stewardship cycle completed the same day (ContextualWP v1.3.6). A weekly Claude Code Routine, the Contextual Product Steward, runs cycles from 2026-10-12; see [governance/routine.md](governance/routine.md).
 
 ## Licence
 

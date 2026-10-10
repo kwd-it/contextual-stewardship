@@ -5,7 +5,7 @@ This is the entry point for any Claude session asked to steward the Contextual e
 ## Roles
 
 - **Product owner**: Kirk (KWD IT). Holds all authority not explicitly delegated below.
-- **Steward**: the Claude Code session doing the work, under the universal Claude instructions and this repository's governance.
+- **Steward**: the Claude Code session doing the work, under the universal Claude instructions and this repository's governance. Normally this is the weekly Contextual Product Steward Routine (`governance/routine.md`); a session the product owner starts by hand is the same role with the same authority.
 - **Reviewer**: Codex, invoked by the steward for an independent review of every change.
 - **Reference implementation**: a production housebuilder website running all three products. It is referred to only at this level of detail. Production changes to it are never made by the steward.
 
