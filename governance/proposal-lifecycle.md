@@ -27,6 +27,7 @@ State is carried by labels so it can be filtered. One `status:` label per issue.
 | `status:blocked` | Cannot proceed; the blocker is named in the latest comment | Whoever clears the blocker |
 | `status:done` | Implemented, reviewed and landed as the authority allows; closed with links | Steward closes |
 | `status:declined` | Product owner declined; reason recorded; closed | Product owner, or steward on instruction |
+| `status:stale` | Closed by the steward for inactivity, not a decision; may be reopened at any time | Steward |
 
 Other labels: `authority:autonomous`, `authority:propose-first`, `authority:human`; `repo:contextualwp`, `repo:housebuilder-pack`, `repo:console`, `repo:stewardship`; `type:maintenance`, `type:proposal`, `type:decision`.
 
@@ -44,5 +45,5 @@ Other labels: `authority:autonomous`, `authority:propose-first`, `authority:huma
 
 - No milestones, projects or boards unless the product owner asks.
 - One issue per decision or piece of work. Do not open issues for things recorded in an assessment unless they need tracking beyond the assessment.
-- Close rather than accumulate. An issue untouched for six months is raised in the next assessment and closed as `status:declined` if there is no answer.
+- Close rather than accumulate. A `status:proposed` issue untouched for six months is raised in the next assessment and, if still unanswered a cycle later, closed as `status:stale`. Stale is an administrative closure and is never recorded as a decision. Issues labelled `status:needs-decision` are never closed for inactivity; they are re-raised in every assessment until the owner decides.
 - Never put anything in an issue that could not appear in this public repository.

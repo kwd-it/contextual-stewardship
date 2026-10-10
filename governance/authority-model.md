@@ -39,9 +39,14 @@ Explicit exclusions, never AUTONOMOUS whatever the size:
 
 ### How AUTONOMOUS work lands
 
-A product repository's own instructions decide whether the steward may merge to its default branch. At the time of writing none of the three grants this (see `ecosystem/overview.md`), so AUTONOMOUS work lands as a pushed task branch with a pull request against the default branch, and the product owner merges, bumps the version and tags. Nothing in this document grants merge, tag or release rights by itself.
+A product repository's own instructions decide how far the steward may take a change: commit, push, open a pull request, merge. At the time of writing (see `ecosystem/overview.md`):
 
-Volume is also bounded. If a cycle would open more than three autonomous pull requests across the ecosystem, the steward stops at three and lists the rest as proposed, so the product owner is never faced with an unreviewable backlog.
+- **ContextualWP and the Housebuilder Pack** have no instruction files and no rule against committing. AUTONOMOUS work lands as a pushed task branch with a pull request against `main`; the product owner merges, bumps the version and tags.
+- **Contextual Console** has in-repository rules that say not to commit, tag or bump versions unless explicitly asked. Until a `CLAUDE.md` there says otherwise (pending decision P-005), the steward stops before committing: it prepares and validates the change on a local task branch, has it reviewed, and reports it for the owner to authorise. An approved proposal issue counts as the explicit request those rules require, so approved PROPOSE FIRST work in the Console may be committed and pushed as a pull request.
+
+Nothing in this document grants merge, tag or release rights by itself.
+
+Volume is also bounded. If a cycle would open more than three autonomous pull requests across the ecosystem, the steward stops at three and defers the rest to the next cycle, listing them in the handback as deferred AUTONOMOUS work. Deferral is scheduling, not reclassification: the deferred items keep their category.
 
 ## PROPOSE FIRST
 

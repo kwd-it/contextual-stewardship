@@ -33,17 +33,20 @@ Priority: high. Authority: AUTONOMOUS under the retired-model rule in `governanc
 Priority: high (dated). Authority: fallback cleanup AUTONOMOUS; catalogue refresh and nano-tier replacement PROPOSE FIRST. Repository: contextualwp.
 
 - Verified: OpenAI's deprecations page (developers.openai.com/api/docs/deprecations, checked 2026-10-10) lists `gpt-5-2025-08-07`, `gpt-5-mini-2025-08-07` and `gpt-5-nano-2025-08-07` for shutdown on 2026-12-11 (replacements `gpt-5.6-sol`, `gpt-5.6-terra`, `gpt-5.6-luna`), `gpt-5.2-chat-latest` shut down on 2026-08-10, and `gpt-5.4-nano` for shutdown on 2027-04-01 (replacement `gpt-6-luna`). The plugin's legacy-accepted list contains `gpt-5`, `gpt-5-mini`, `gpt-5-nano`, `gpt-5.2`; its fallback list is `gpt-5.4-mini`, `gpt-5.4-nano`, `gpt-5-mini`, `gpt-5-nano`; its nano tier is `gpt-5.4-nano`. No shutdown is listed for `gpt-5.5` (the default) or `gpt-5.4-mini`.
-- Recommendation: (a) before 2026-12-11, remove `gpt-5-mini` and `gpt-5-nano` from the fallback list and mark the 2025 `gpt-5` IDs as retiring in the legacy handling (AUTONOMOUS); (b) propose a catalogue refresh that moves the nano tier off `gpt-5.4-nano` before 2027-04-01 and evaluates the `gpt-5.6` generation for the visible catalogue and default, with behaviour and cost considered (PROPOSE FIRST because it changes defaults).
+- Recommendation: (a) remove `gpt-5-mini` and `gpt-5-nano` from the fallback list and mark the 2025 `gpt-5` IDs as retiring in the legacy handling now; their shutdown is within the 90-day window the currency policy sets for autonomous removal (AUTONOMOUS); (b) propose a catalogue refresh that moves the nano tier off `gpt-5.4-nano` before 2027-04-01 and evaluates the `gpt-5.6` generation for the visible catalogue and default, with behaviour and cost considered (PROPOSE FIRST because it changes defaults).
 - Value: avoids fallback requests to dead models in December and a dead nano tier in April; keeps the default current on the owner's terms.
 - Scope: (a) small; (b) small to medium including a README refresh.
 - Risk: (a) negligible; (b) changes which model editors get by default, so owner approval and a changelog note are needed.
 
-### F-3. Anthropic catalogue: current, with a parsing constraint for any future move
+### F-3. Anthropic catalogue: one legacy ID retiring, nano tier at its earliest retirement window, parsing constraint on any successor
 
-Priority: low. Authority: no action now; PROPOSE FIRST when acted on. Repository: contextualwp.
+Priority: medium. Authority: legacy-ID handling AUTONOMOUS; any tier or parsing change PROPOSE FIRST. Repository: contextualwp.
 
-- Verified: the plugin's Claude IDs (`claude-opus-4-7`, `claude-sonnet-4-6`, `claude-haiku-4-5`, legacy `claude-opus-4-5`, `claude-sonnet-4-5`) are all active per Anthropic's current model list (reference dated 2026-10-06), and the `anthropic-version: 2023-06-01` header remains current. The Claude 5 family (`claude-opus-5-5`, `claude-sonnet-5-5`, `claude-haiku-5-5`) exists, but nothing the plugin uses is deprecated. The plugin reads the reply from `content[0].text`; Claude 5 models return thinking blocks before text by default, so a straight ID swap would break parsing.
-- Recommendation: no change now. Any Claude catalogue refresh must change response parsing to select the first text block and must be tested, which makes it PROPOSE FIRST.
+- Verified against Anthropic's model deprecations page (https://platform.claude.com/docs/en/about-claude/model-deprecations, checked 2026-10-10): `claude-sonnet-4-5-20250929`, which the plugin accepts as the legacy ID `claude-sonnet-4-5`, was deprecated on 2026-09-30 and retires on 2026-11-30 with `claude-sonnet-5-5` as the recommended replacement. The three tier IDs are Active with tentative earliest retirement dates of 2027-04-16 (`claude-opus-4-7`), 2027-02-17 (`claude-sonnet-4-6`) and 2026-10-15 (`claude-haiku-4-5`); legacy `claude-opus-4-5` is Active until not sooner than 2026-11-24. The `anthropic-version: 2023-06-01` header is still the one the documentation uses. Per Anthropic's thinking documentation (https://platform.claude.com/docs/en/build-with-claude/thinking-steering-and-cost), thinking on current models is adaptive, a response may begin with a thinking block, and the documentation warns against logic that assumes a fixed first block; the plugin reads the reply from `content[0].text`, so a straight swap to any Claude 5 model would break parsing on turns where the model thinks.
+- Recommendation: (a) mark `claude-sonnet-4-5` as retiring in the legacy handling now, within the 90-day window (AUTONOMOUS); (b) propose, ahead of any deprecation notice for `claude-haiku-4-5`, a change to the Anthropic response parsing that selects the first `text` block regardless of position, with tests, so that a future nano-tier successor is a configuration change rather than an emergency (PROPOSE FIRST); (c) no tier changes now.
+- Value: no request path to a retired model; the plugin is ready for a Haiku deprecation notice, which Anthropic gives with at least 60 days of notice.
+- Scope: (a) trivial; (b) small, one parsing function plus tests.
+- Risk: (a) none; (b) low, and behaviour-preserving for current models, but it changes provider request handling and so stays PROPOSE FIRST under the currency policy.
 
 ### F-4. PHP 8.1 minimum is end of life
 
@@ -59,7 +62,7 @@ Priority: medium. Authority: HUMAN AUTHORITY decision on the supported platform 
 
 Priority: medium. Authority: PROPOSE FIRST, except where noted. Repositories: contextualwp, contextualwp-housebuilder-pack.
 
-- Verified: ContextualWP's header declares no `Requires at least`, `Requires PHP` or `Tested up to`. The Pack declares `Tested up to: 6.8`. WordPress 7.0 shipped on 2026-05-20 with the AI Client, Connectors and client-side Abilities API, and 7.1 shipped on 2026-08-19 (sources: InfoQ's July 2026 report on WordPress 7; WordPress 7.1 release coverage; checked 2026-10-10). The plugin's `docs/AI-MIGRATION-PLAN.md` conditions its Phase 2 on exactly these platform features existing.
+- Verified: ContextualWP's header declares no `Requires at least`, `Requires PHP` or `Tested up to`. The Pack declares `Tested up to: 6.8`. WordPress 7.0 shipped on 2026-05-20 and its release post names the AI Client, a Connectors hub and the Abilities API (https://wordpress.org/news/2026/05/armstrong/); WordPress 7.1 shipped on 2026-08-19 (https://wordpress.org/news/2026/08/mary-lou/); both checked 2026-10-10. Detailed Abilities API changes in 7.1 were read from secondary coverage and should be confirmed from the core field guide before the Phase 2 spike relies on them. The plugin's `docs/AI-MIGRATION-PLAN.md` conditions its Phase 2 on exactly these platform features existing.
 - Recommendation: (a) test both plugins against WordPress 7.1 on a non-client site and update `Tested up to` (AUTONOMOUS only once the test has actually been run; it is not a documentation-only edit); (b) propose declaring `Requires at least` and `Requires PHP` in the ContextualWP header (PROPOSE FIRST because WordPress enforces them at install); (c) propose a bounded Phase 2 evaluation spike of the WordPress AI Client against the plugin's five migration conditions, producing a report rather than code (PROPOSE FIRST).
 - Value: accurate compatibility signals for adopters; an informed decision on the plugin's AI transport future instead of an open-ended plan.
 - Scope: (a) small plus a test environment; (b) trivial once decided; (c) medium, report only.
@@ -125,10 +128,10 @@ Priority: low to medium. Authority: PROPOSE FIRST. Repository: contextual-consol
 
 ### F-12. Documentation and metadata drift
 
-Priority: low. Authority: AUTONOMOUS. Repositories: all three.
+Priority: low. Authority: AUTONOMOUS for code comments and metadata; PROPOSE FIRST for the contributor-instruction document. Repositories: all three.
 
 - Verified: ContextualWP `docs/DEVNOTES.md` describes a ChatGPT-plus-Cursor workflow and manual testing and never mentions the PHPUnit suite that exists; `includes/endpoints/generate-context.php` line 324 carries a stale "add more providers here (e.g. anthropic)" comment although Anthropic is implemented. The Pack's `src/Compatibility.php` docblocks still call the version check a placeholder to be verified against core 1.1+. The Console's `composer.json` still carries the Laravel skeleton name and description, and `tools/` is an empty undocumented directory.
-- Recommendation: correct each document to match the code; remove or document the empty directory. One housekeeping branch per repository.
+- Recommendation: (a) correct the stale code comment, the Pack docblocks and the Console `composer.json` metadata, and remove or document the empty directory (AUTONOMOUS); (b) propose updating `docs/DEVNOTES.md`, which is ContextualWP's contributor-instruction document and therefore excluded from autonomous change, ideally together with pending decision P-005 (PROPOSE FIRST).
 - Value: a future steward or contributor is not misled.
 - Scope: trivial. Risk: none.
 
@@ -168,5 +171,5 @@ Ecosystem health; cross-project compatibility; dependencies, runtime and platfor
 ## Suggested order
 
 1. Owner decisions: P-002 (this repository's licence), P-003 (ContextualWP licence), P-004 (PHP minimum), P-001 (autonomous landing), P-005 (per-repository instruction files).
-2. Autonomous first batch, as pull requests: F-1, F-2(a), F-6(a), F-8, F-12, F-13.
-3. Proposals for approval: F-2(b), F-5(b) and (c), F-9, F-10, F-11, then F-14 when feature work is wanted.
+2. Autonomous first batch, as pull requests where the repository permits (see the landing rules in `governance/authority-model.md`): F-1, F-2(a), F-3(a), F-6(a), F-8, F-12(a), F-13. More than three items are listed, so the steward takes the dated ones first (F-1, F-2(a), F-3(a)) and defers the rest to following cycles.
+3. Proposals for approval: F-2(b), F-3(b), F-5(b) and (c), F-9, F-10, F-11, F-12(b), then F-14 when feature work is wanted.
