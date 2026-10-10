@@ -39,12 +39,15 @@ Explicit exclusions, never AUTONOMOUS whatever the size:
 
 ### How AUTONOMOUS work lands
 
-A product repository's own instructions decide how far the steward may take a change: commit, push, open a pull request, merge. At the time of writing (see `ecosystem/overview.md`):
+The landing policy was confirmed by the product owner on 2026-10-10 (D-006) and is the same in all three product repositories. Each repository records it in its own `CLAUDE.md` (D-010):
 
-- **ContextualWP and the Housebuilder Pack** have no instruction files and no rule against committing. AUTONOMOUS work lands as a pushed task branch with a pull request against `main`; the product owner merges, bumps the version and tags.
-- **Contextual Console** has in-repository rules that say not to commit, tag or bump versions unless explicitly asked. Until a `CLAUDE.md` there says otherwise (pending decision P-005), the steward stops before committing: it prepares and validates the change on a local task branch, has it reviewed, and reports it for the owner to authorise. An approved proposal issue counts as the explicit request those rules require, so approved PROPOSE FIRST work in the Console may be committed and pushed as a pull request.
+- the steward implements and validates on a dedicated task branch, runs the Codex review of the actual diff, resolves material findings, commits, pushes the branch and opens a pull request against the default branch (`main` for the plugins, `master` for the Console);
+- the product owner merges, bumps the version, tags and releases;
+- the steward never merges to a default branch.
 
-Nothing in this document grants merge, tag or release rights by itself.
+For the Console this rule is the explicit authorisation that its Cursor workflow rules require before committing; it does not extend to merging, tagging or version bumps. Where a product repository's instructions are stricter than this, they win.
+
+Nothing in this document grants merge, tag or release rights by itself. Autonomous merge-to-default-branch authority is reconsidered only after approximately three to five successful real stewardship cycles have provided evidence about quality and reliability (D-006), and any change to it is a HUMAN AUTHORITY decision recorded in `decisions/README.md`.
 
 Volume is also bounded. If a cycle would open more than three autonomous pull requests across the ecosystem, the steward stops at three and defers the rest to the next cycle, listing them in the handback as deferred AUTONOMOUS work. Deferral is scheduling, not reclassification: the deferred items keep their category.
 

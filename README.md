@@ -39,4 +39,4 @@ Established on 2026-10-10 with the first ecosystem assessment. No automated stew
 
 ## Licence
 
-No licence has been applied yet. The product repositories use different licences and the choice for this documentation repository is recorded as a pending decision in [decisions/README.md](decisions/README.md). Until a licence is added, the content is all rights reserved by default.
+The contents of this repository are licensed under the [Creative Commons Attribution 4.0 International licence](LICENSE) (CC BY 4.0), decided on 2026-10-10 (D-007 in [decisions/README.md](decisions/README.md)). The licence applies to this stewardship and documentation repository only. The product repositories keep their own licences (ContextualWP GPL-3.0-only, the Housebuilder Pack GPL-2.0-or-later, Contextual Console MIT) and nothing here changes them.
