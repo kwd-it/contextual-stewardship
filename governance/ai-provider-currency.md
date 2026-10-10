@@ -27,7 +27,7 @@ A newer model existing is never by itself a reason to change anything.
 
 **AUTONOMOUS**, under the normal conditions in `authority-model.md`:
 
-- Removing an ID from a fallback list, or marking a legacy-accepted ID as retiring, once the vendor has retired it or scheduled its retirement within 90 days, so the plugin never falls back to a model that is dead or about to be. Saved settings that name the ID keep working until retirement; the admin screen may show a retirement notice.
+- Removing an ID from a fallback list, or marking a legacy-accepted ID as retiring, once the vendor has retired it or scheduled its retirement within 90 days, so the plugin never falls back to a model that is dead or about to be. This uses only the plugin's existing legacy-model handling: saved settings that name the ID keep working until retirement, and nothing new is shown to editors. Adding a retirement notice or any other admin UI is a UX change and therefore PROPOSE FIRST.
 - Replacing a model ID that the vendor has retired, or has scheduled for retirement within 90 days, with the vendor's documented successor **in the same tier**, when all of these hold: the request and response contract the plugin relies on is unchanged for the successor; previously saved IDs remain accepted so existing sites keep working; the plugin's tests are updated; and the change and its source are recorded in the changelog. The steward verifies the successor's exact API ID against the vendor's documentation, not from a secondary source.
 - Documentation corrections where the README names a model the code no longer uses.
 
