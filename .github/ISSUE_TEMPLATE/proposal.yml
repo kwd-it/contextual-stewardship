@@ -1,0 +1,47 @@
+name: Proposal
+description: Work that changes product behaviour, interfaces, architecture, platforms or direction. Needs product-owner approval before implementation.
+title: "Proposal: "
+labels: ["type:proposal", "status:proposed", "authority:propose-first"]
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem or opportunity
+      description: What was verified, where (file, line, source URL, date). Facts only.
+    validations:
+      required: true
+  - type: textarea
+    id: recommendation
+    attributes:
+      label: Recommendation
+      description: The specific change proposed, and the alternatives rejected.
+    validations:
+      required: true
+  - type: textarea
+    id: value
+    attributes:
+      label: Value
+      description: Who benefits and how much.
+    validations:
+      required: true
+  - type: textarea
+    id: scope
+    attributes:
+      label: Scope, effort and repositories
+      description: Approximate size and every repository that changes. Say which other products are affected and how compatibility will be validated.
+    validations:
+      required: true
+  - type: textarea
+    id: risk
+    attributes:
+      label: Risk and reversal
+      description: What could break, how it is validated, how it is reversed.
+    validations:
+      required: true
+  - type: textarea
+    id: category
+    attributes:
+      label: Category check
+      description: Why this is not AUTONOMOUS and not HUMAN AUTHORITY.
+    validations:
+      required: true

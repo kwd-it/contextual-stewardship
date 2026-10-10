@@ -1,0 +1,19 @@
+name: Maintenance item
+description: AUTONOMOUS-category work that spans repositories or cannot be finished in one stewardship cycle.
+title: "Maintenance: "
+labels: ["type:maintenance", "authority:autonomous", "status:approved"]
+body:
+  - type: textarea
+    id: change
+    attributes:
+      label: Change
+      description: What will change and why it is behaviour-preserving (one sentence each).
+    validations:
+      required: true
+  - type: textarea
+    id: repos
+    attributes:
+      label: Repositories and order
+      description: Which repositories change, in what order, and how compatibility is validated.
+    validations:
+      required: true
