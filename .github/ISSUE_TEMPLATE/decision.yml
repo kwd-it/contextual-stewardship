@@ -1,0 +1,26 @@
+name: Decision needed
+description: A product, legal or authority decision only the product owner can make.
+title: "Decision: "
+labels: ["type:decision", "status:needs-decision", "authority:human"]
+body:
+  - type: textarea
+    id: decision
+    attributes:
+      label: Decision needed
+      description: The exact question, in one or two sentences.
+    validations:
+      required: true
+  - type: textarea
+    id: context
+    attributes:
+      label: Verified context
+      description: What was found, where, and when.
+    validations:
+      required: true
+  - type: textarea
+    id: recommendation
+    attributes:
+      label: Steward recommendation
+      description: The recommended answer and why. The steward does not act until the owner decides.
+    validations:
+      required: true
