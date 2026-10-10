@@ -7,10 +7,10 @@ Verified against the repositories on 2026-10-10. Update this file in the same cy
 | Consumer | Requires | Declared where | Enforced how |
 |---|---|---|---|
 | Housebuilder Pack 0.4.8 | ContextualWP core >= 1.3.3 | `CONTEXTUALWP_HOUSEBUILDER_PACK_MIN_CONTEXTUALWP_VERSION`, `requires_contextualwp` in registration, README | Pack checks `CONTEXTUALWP_VERSION` and shows an admin notice; core marks the pack "Incompatible" in admin. Neither blocks activation. If `CONTEXTUALWP_VERSION` is undefined the Pack treats core as compatible. |
-| Housebuilder Pack 0.4.8 | WordPress >= 6.4, PHP >= 8.1; tested up to WordPress 6.8 | Plugin header | WordPress enforces the header minimums. No `Requires Plugins` header. |
-| ContextualWP 1.3.5 | PHP >= 8.1 | `composer.json` only | Not enforced at install. **No WordPress minimum is declared anywhere.** |
+| Housebuilder Pack 0.4.8 | WordPress >= 6.4, PHP >= 8.1 (8.3 once [pull request #1](https://github.com/kwd-it/contextualwp-housebuilder-pack/pull/1) merges, D-009); tested up to WordPress 6.8 | Plugin header, `composer.json` | WordPress enforces the header minimums. No `Requires Plugins` header. |
+| ContextualWP 1.3.5 | PHP >= 8.1 (8.3 once [pull request #1](https://github.com/kwd-it/contextualwp/pull/1) merges, D-009) | `composer.json` only (plus a `Requires PHP` header once that pull request merges) | Not enforced at install today; WordPress enforces `Requires PHP` once declared. **No WordPress minimum is declared anywhere.** |
 | Contextual Console 1.2.1 | Housebuilder Pack >= 0.4.6 for asset-completeness fields | README, `CHANGELOG.md`, handover doc | **Not enforced in code.** Missing fields are treated as `unknown` and are non-actionable. No ContextualWP core requirement is stated. |
-| Contextual Console 1.2.1 | PHP ^8.3, Laravel ^13.0 (lock: 13.4.0) | `composer.json` | Composer |
+| Contextual Console 1.2.1 | PHP ^8.3, Laravel ^13.0 (lock: 13.4.0) | `composer.json` | Composer. **Declared and effective minimums differ:** the committed `composer.lock` resolves Symfony packages that require PHP >= 8.4, so the suite does not start under PHP 8.3 and passes under 8.4 (verified 2026-10-10 by running it). Recorded in the Console `CLAUDE.md`; resolving it is a separate decision. |
 
 Maximum versions are declared nowhere. A core major release would not be detected by the Pack or the Console.
 

@@ -34,15 +34,17 @@ One UK housebuilder website runs all three in production. It is the source of mo
 |---|---|---|---|
 | Default branch | `main` | `main` | `master` |
 | Staging branch | none | none | none |
-| Instruction files | none; conventions in `docs/DEVNOTES.md` | none; conventions in `DEVNOTES.md` and `.github/` templates | none for Claude or Codex; rules in `.cursor/skills/` and `docs/contextual-console-handover.md` |
+| Instruction files | `CLAUDE.md`, `AGENTS.md` (pull request #1, pending merge); conventions in `docs/DEVNOTES.md` | `CLAUDE.md`, `AGENTS.md` (pull request #1, pending merge); conventions in `DEVNOTES.md` and `.github/` templates | `CLAUDE.md`, `AGENTS.md` (pull request #1, pending merge), reconciled with the Cursor rules in `.cursor/skills/` and `docs/contextual-console-handover.md` |
 | Branch prefixes | `docs/ feat/ fix/ refactor/ test/ chore/` | Conventional (`feat/ fix/ chore/`) | `feature/ fix/ chore/` |
 | Release | `chore(release): prepare vX.Y.Z` commit on branch, merge, tag on `main` | same pattern, linear history | separate release commit, tag; version in `CHANGELOG.md` only |
 | Tests | PHPUnit 10, stub bootstrap | PHPUnit 10.5, stub bootstrap | Pest 4, SQLite in memory, `composer test` |
 | CI | none | none | none |
-| Licence | `LICENSE` is GPL-3.0; `composer.json` says MIT (inconsistent) | GPL-2.0-or-later throughout | MIT throughout |
-| Steward may merge to default branch | not granted | not granted | not granted; in-repo rules say do not commit, tag or bump unless asked |
+| Licence | GPL-3.0-only (`LICENSE` authoritative; `composer.json` corrected from MIT in pull request #1, pending merge; D-008) | GPL-2.0-or-later throughout | MIT throughout |
+| Steward may merge to default branch | not granted (D-006) | not granted (D-006) | not granted (D-006); committing and pushing to a task branch is authorised by its `CLAUDE.md` |
 
-The Console's in-repository rules were written for a different assistant but are the repository's expressed conventions and are followed as such until a `CLAUDE.md` exists there.
+The Console's Cursor rules remain its expressed conventions; its `CLAUDE.md` points back to them and records the landing rule as the authorisation they require.
+
+Pull requests opened on 2026-10-10 implementing D-008 to D-010: [contextualwp #1](https://github.com/kwd-it/contextualwp/pull/1), [contextualwp-housebuilder-pack #1](https://github.com/kwd-it/contextualwp-housebuilder-pack/pull/1), [contextual-console #1](https://github.com/kwd-it/contextual-console/pull/1). Update this table and `compatibility.md` when they merge.
 
 ## Development history
 
