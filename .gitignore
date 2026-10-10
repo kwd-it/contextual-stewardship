@@ -1,0 +1,10 @@
+# OS and editor artefacts
+.DS_Store
+Thumbs.db
+*.swp
+.idea/
+.vscode/
+
+# Local-only working files must never be committed
+*.local.md
+.env
