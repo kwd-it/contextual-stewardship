@@ -29,6 +29,7 @@ The three product repositories each hold their own code, commands and convention
 | [ecosystem/compatibility.md](ecosystem/compatibility.md) | Cross-project interfaces and the version compatibility matrix |
 | [assessments/](assessments/) | Dated health assessments of the ecosystem |
 | [decisions/](decisions/) | Durable decision log |
+| [tooling/codex/](tooling/codex/) | Bounded Codex review runner and reviewer instructions for the cloud Routine (verbatim copies of the canonical files) |
 
 ## What does not live here
 
