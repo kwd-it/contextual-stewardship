@@ -14,7 +14,7 @@ Both gates in `governance/routine.md` held: `tooling/codex/setup.sh` exited 0 in
 
 | Item | Authority | Outcome |
 |---|---|---|
-| ContextualWP Linux test autoload | AUTONOMOUS | [contextualwp #3](https://github.com/kwd-it/contextualwp/pull/3) opened against `main`, awaiting owner merge. |
+| ContextualWP Linux test autoload | AUTONOMOUS | [contextualwp #3](https://github.com/kwd-it/contextualwp/pull/3) opened against `main`; merged by the product owner's authorisation on 2026-10-11 as merge commit f4bee5e (unreleased). |
 
 Root cause: a test-bootstrap defect, not a runtime defect. `composer.json` maps PSR-4 `ContextualWP\` to `includes/`, but the helpers live in lower-case, hyphenated files, so Composer resolves `ContextualWP\Helpers\Utilities` only where the filesystem ignores case. Runtime loads every helper by explicit `require_once` and is unaffected on any platform. The fix adds one explicit `require` of `includes/helpers/utilities.php` to `tests/bootstrap.php`, matching the bootstrap's existing convention, plus a one-line changelog entry. No file renames, no `composer.json` change, no runtime, interface, dependency, platform or provider change.
 
@@ -24,11 +24,11 @@ Codex review of the actual diff through `tooling/codex/review.mjs`: **no materia
 
 ## Consequence for the Routine
 
-Once contextualwp #3 is merged, the ContextualWP suite is runnable in the Routine environment, so the "validated" condition in `governance/routine.md` can be met for ContextualWP in later cycles. Until it merges, that limitation stands.
+contextualwp #3 merged on 2026-10-11, so the ContextualWP suite is runnable in the Routine environment and the "validated" condition in `governance/routine.md` can be met for ContextualWP in later cycles. The fix is not yet in a release.
 
 ## Boundaries observed
 
-The pull request is not merged; merge and release remain with the product owner. Nothing was deployed, no version was bumped, no tag or release was made, and the reference implementation was untouched. The Housebuilder Pack and the Console were not modified. Governance files were not changed.
+The steward did not merge the pull request; the product owner authorised its merge on 2026-10-11. Release remains with the product owner. Nothing was deployed, no version was bumped, no tag or release was made, and the reference implementation was untouched. The Housebuilder Pack and the Console were not modified. Governance files were not changed.
 
 ## Carried forward
 
