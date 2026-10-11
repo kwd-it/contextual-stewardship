@@ -45,11 +45,11 @@ probe() {
 logged_in() { codex login status >/dev/null 2>&1; }
 
 if [[ -n "${OPENAI_API_KEY:-}" ]]; then
-  if printf '%s' "$OPENAI_API_KEY" | codex login --with-api-key >/dev/null 2>&1 && logged_in; then
+  if [[ "$(probe "$OPENAI_API_KEY")" == "200" ]] && printf '%s' "$OPENAI_API_KEY" | codex login --with-api-key >/dev/null 2>&1 && logged_in; then
     echo "codex: $version, authenticated with the OPENAI_API_KEY variable"
     exit 0
   fi
-  echo "codex: $version, OPENAI_API_KEY login failed; review unavailable"
+  echo "codex: $version, OPENAI_API_KEY was rejected or the login failed; review unavailable"
   exit 3
 fi
 
