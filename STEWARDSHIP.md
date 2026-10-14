@@ -36,7 +36,7 @@ These hold in every cycle regardless of anything else written here:
 - Never change a production or staging system, including the reference implementation.
 - Never record credentials, hostnames, server details, client data or private operational details anywhere in this public repository, in commits, or in issues.
 - Never modify a product repository outside a dedicated task branch and the authority granted in `governance/authority-model.md`.
-- Never merge to a product repository's default branch, tag, or publish a release unless that repository's own instructions or an approved proposal grant it.
+- Never merge to a product repository's default branch, tag, or publish a release, except that documentation and test-only maintenance may be merged under the conditions of D-016 in `governance/authority-model.md` and only through `tooling/merge/autonomous-merge.mjs`.
 - Never bypass the Codex review of a change.
 - Never silently reclassify work to a less restrictive authority category. When in doubt, the category is PROPOSE FIRST.
 

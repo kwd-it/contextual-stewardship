@@ -1,6 +1,6 @@
 # Repository instructions
 
-This is the public governance and stewardship repository for the Contextual ecosystem. It contains documentation, plus `tooling/codex/`: verbatim copies of the canonical Codex review runner and universal Codex instructions that the cloud Routine runs (see `tooling/codex/README.md`), and `tooling/approvals/` with the owner-approvals workflow script (see `governance/owner-notifications.md`). Start with `STEWARDSHIP.md`.
+This is the public governance and stewardship repository for the Contextual ecosystem. It contains documentation, plus `tooling/codex/`: verbatim copies of the canonical Codex review runner and universal Codex instructions that the cloud Routine runs (see `tooling/codex/README.md`), `tooling/approvals/` with the owner-approvals workflow script (see `governance/owner-notifications.md`), and `tooling/merge/` with the autonomous merge tool (see `governance/authority-model.md`, D-016). Run `node --test tooling/approvals/owner-approvals.test.mjs tooling/merge/autonomous-merge.test.mjs` after changing either. Start with `STEWARDSHIP.md`.
 
 - This repository is public. Never commit credentials, hostnames, server details, client data or private operational details, and never reference the reference implementation beyond "a UK housebuilder website".
 - There is no staging branch. Work on a task branch, validate (Markdown renders, links resolve, no private values), run the Codex review, then merge to `main` and push. Deleting the task branch after merge is fine here because nothing is promoted further.

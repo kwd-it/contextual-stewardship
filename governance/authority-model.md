@@ -42,14 +42,35 @@ Explicit exclusions, never AUTONOMOUS whatever the size:
 The landing policy was confirmed by the product owner on 2026-10-10 (D-006) and is the same in all three product repositories. Each repository records it in its own `CLAUDE.md` (D-010):
 
 - the steward implements and validates on a dedicated task branch, runs the Codex review of the actual diff, resolves material findings, commits, pushes the branch and opens a pull request against the default branch (`main` for the plugins, `master` for the Console);
-- the product owner merges, bumps the version, tags and releases;
-- the steward never merges to a default branch.
+- the steward merges the pull request itself only when it meets every condition of the autonomous merge policy below (D-016); otherwise the product owner merges;
+- the product owner bumps the version, tags and releases in every case.
 
 For the Console this rule is the explicit authorisation that its Cursor workflow rules require before committing; it does not extend to merging, tagging or version bumps. Where a product repository's instructions are stricter than this, they win.
 
-Nothing in this document grants merge, tag or release rights by itself. Autonomous merge-to-default-branch authority is reconsidered only after approximately three to five successful real stewardship cycles have provided evidence about quality and reliability (D-006), and any change to it is a HUMAN AUTHORITY decision recorded in `decisions/README.md`.
+Nothing in this document grants tag or release rights, and the only merge right it grants is the narrow one below. Any wider autonomous merge authority is a HUMAN AUTHORITY decision recorded in `decisions/README.md` (D-006 asked for three to five successful cycles of evidence first; D-016 granted the documentation and test-only category on 2026-10-14 after three).
 
 Volume is also bounded. If a cycle would open more than three autonomous pull requests across the ecosystem, the steward stops at three and defers the rest to the next cycle, listing them in the handback as deferred AUTONOMOUS work. Deferral is scheduling, not reclassification: the deferred items keep their category.
+
+### Autonomous merge of documentation and test-only maintenance (D-016)
+
+Standing permission from the product owner, 2026-10-14, for one category only: the steward may merge its own pull request to the default branch when **all** of the following hold. Unknown or ambiguous is ineligible. Everything else (runtime code, dependencies, CI, new functionality, defaults, configuration, higher-risk work) keeps the approval rules above.
+
+1. The change is exclusively low-risk documentation or test-only maintenance: Markdown files, text files under `docs/`, and files under `tests/`. Every touched path is an ordinary file whose diff GitHub can show; binaries, symbolic links, submodules and files without diff content are ineligible, and a rename is judged on both of its paths.
+2. No application runtime code, public interface, behaviour, configuration or dependency changes (`composer.json`, lock files, `package.json`, `phpunit.xml`, `.env*`, and the `app/`, `src/`, `includes/`, `admin/`, `config/`, `database/`, `routes/`, `resources/`, `public/` and `bootstrap/` trees are all outside the category).
+3. No CI workflow, deployment configuration, security policy, authentication or permission changes (`.github/` is outside the category).
+4. No version bump, release, tag or database change: no plugin header, `readme.txt` or release commit, and no changelog heading added, removed or changed other than "Unreleased" and the Keep a Changelog category headings (Added, Changed, Deprecated, Removed, Fixed, Security).
+5. No repository governance, policy, licence, contract or AI instruction document changes (`CLAUDE.md`, `AGENTS.md`, `DEVNOTES.md`, `GEMINI.md`, `SECURITY.md`, `CONTRIBUTING.md`, `CODE_OF_CONDUCT.md`, `CODEOWNERS`, licence files, `docs/COMPATIBILITY.md`, `docs/PACK-SPEC.md`, any `SKILL.md` or rules file, and the `.cursor/`, `.claude/`, `.agents/`, `.github/` and `governance/` trees).
+6. No test coverage or assertions are weakened: no test file removed, no assertion or test removed without an equal number added, no skip, todo or only marker added.
+7. The pull request comes from a task branch in the same repository, opened by an owner, member or collaborator, against the default branch; never from a fork.
+8. The complete final diff has been reviewed by Codex, all material findings are resolved, and the description records it in the words `owner-notifications.md` recognises plus a `Reviewed head: <sha>` line.
+9. Required validation and every GitHub check on the head have completed with success; pending, failed, skipped, neutral or unknown outcomes are all ineligible.
+10. The pull request is mergeable with merge state `clean`, is not a draft, has no review requesting changes, and its head commit is the reviewed commit.
+11. Merging cannot trigger a production deployment: the repository is one of the three listed in `tooling/merge/autonomous-merge.mjs`, where this was verified (see "Deployment safety" below), and the product owner has not withdrawn it.
+12. The change is bounded: at most 20 files and 400 changed lines.
+
+The merge is performed only through `tooling/merge/autonomous-merge.mjs`, which checks every condition it can read from GitHub, refuses otherwise, merges with the head SHA pinned so that a moved head is rejected, uses the repository's history convention (merge commit for ContextualWP, rebase for the Pack and the Console), and leaves an audit comment on the pull request. The steward's own judgement applies on top of the tool, never instead of it: a change that passes the tool but is not genuinely low-risk maintenance is left for the owner. Task branches are retained per `development-workflow.md`.
+
+**Deployment safety** (verified 2026-10-14 by reading each repository and its GitHub settings as an admin): none of the three product repositories has a webhook, GitHub Actions deployment workflow, deployment environment, GitHub deployment record or Git-based auto-update header; the Console's documented deployment is an operator-run sequence on the server, and the plugins reach a site only through a built release or an operator-run Composer install. Merging a default branch therefore changes nothing in production. If any repository gains a mechanism that reacts to its default branch (a deploy webhook, a `dev-main` Composer requirement on a site, a server-side pull), the product owner removes it from the tool's list first; the steward treats any sign of such a mechanism as making the repository ineligible until the owner confirms otherwise.
 
 ## PROPOSE FIRST
 

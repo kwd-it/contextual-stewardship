@@ -3,6 +3,13 @@ description: A product, legal or authority decision only the product owner can m
 title: "Decision: "
 labels: ["type:decision", "status:needs-decision", "authority:human"]
 body:
+  - type: input
+    id: owner-summary
+    attributes:
+      label: Owner summary
+      description: One plain-English sentence for the product owner, phrased as the question they are being asked. Used verbatim in their notification.
+    validations:
+      required: true
   - type: textarea
     id: decision
     attributes:

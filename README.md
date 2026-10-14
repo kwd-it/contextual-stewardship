@@ -32,6 +32,7 @@ The three product repositories each hold their own code, commands and convention
 | [decisions/](decisions/) | Durable decision log |
 | [tooling/codex/](tooling/codex/) | Bounded Codex review runner and reviewer instructions for the cloud Routine (verbatim copies of the canonical files) |
 | [tooling/approvals/](tooling/approvals/) | The owner-approvals summary script run by `.github/workflows/owner-approvals.yml` |
+| [tooling/merge/](tooling/merge/) | The autonomous merge tool for documentation and test-only maintenance (D-016) and its tests |
 
 ## What does not live here
 

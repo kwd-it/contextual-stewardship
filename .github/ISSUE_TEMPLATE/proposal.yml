@@ -3,6 +3,13 @@ description: Work that changes product behaviour, interfaces, architecture, plat
 title: "Proposal: "
 labels: ["type:proposal", "status:proposed", "authority:propose-first"]
 body:
+  - type: input
+    id: owner-summary
+    attributes:
+      label: Owner summary
+      description: One plain-English sentence for the product owner, phrased as the question they are being asked. Used verbatim in their notification.
+    validations:
+      required: true
   - type: textarea
     id: problem
     attributes:
