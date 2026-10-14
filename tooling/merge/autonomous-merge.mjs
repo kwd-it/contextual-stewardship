@@ -245,9 +245,18 @@ function ghApi(path, method, body) {
   const text = idx >= 0 ? out.slice(idx + sep.length) : '';
   const status = Number((head.match(/^HTTP\/[\d.]+\s+(\d{3})/m) || [])[1]);
   if (!status) throw new Error(`gh api ${method} ${path}: no HTTP status in the response (${(r.stderr || '').trim().slice(0, 200)})`);
+  const ok = status >= 200 && status < 300;
+  // A successful status with an unsuccessful or interrupted process means the body may
+  // be incomplete; never treat that as a good response.
+  if (ok && (r.status !== 0 || r.signal)) throw new Error(`gh api ${method} ${path}: HTTP ${status} but gh exited ${r.signal || r.status} (${(r.stderr || '').trim().slice(0, 200)})`);
   let data = null;
-  try { data = text.trim() ? JSON.parse(text) : null; } catch { data = text; }
-  return { status, ok: status >= 200 && status < 300, data };
+  if (text.trim()) {
+    try { data = JSON.parse(text); } catch {
+      if (ok) throw new Error(`gh api ${method} ${path}: HTTP ${status} with an unparseable body`);
+      data = text;
+    }
+  }
+  return { status, ok, data };
 }
 
 async function api(path, { method = 'GET', body } = {}) {
@@ -268,7 +277,8 @@ async function listAll(path, field) {
   for (let page = 1; page <= 20; page += 1) {
     const { ok, status, data } = await api(`${path}${sep}per_page=100&page=${page}`);
     if (!ok) throw new Error(`GET ${path} -> HTTP ${status}`);
-    const chunk = field ? data?.[field] ?? [] : data;
+    const chunk = field ? data?.[field] : data;
+    if (!Array.isArray(chunk)) throw new Error(`GET ${path}: unexpected response shape`);
     out.push(...chunk);
     if (chunk.length < 100) break;
     if (field && out.length >= (data?.total_count ?? 0)) break;
