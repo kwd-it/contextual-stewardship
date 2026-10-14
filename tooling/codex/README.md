@@ -1,6 +1,6 @@
 # Codex review tooling for the cloud Routine
 
-The Contextual Product Steward Routine runs in a cloud environment that cannot reach the product owner's private workflow repository, where the canonical review runner and the universal Codex instructions live. This directory carries verbatim copies so the Routine can run the same bounded review the universal instructions require. It is tooling for the steward, not product code, and it is the only non-documentation content in this repository.
+The Contextual Product Steward Routine runs in a cloud environment that cannot reach the product owner's private workflow repository, where the canonical review runner and the universal Codex instructions live. This directory carries verbatim copies so the Routine can run the same bounded review the universal instructions require. It is tooling for the steward, not product code; the only other non-documentation content is `tooling/approvals/`.
 
 | File | Purpose | Canonical source |
 |---|---|---|

@@ -25,11 +25,13 @@ The three product repositories each hold their own code, commands and convention
 | [governance/ai-provider-currency.md](governance/ai-provider-currency.md) | Keeping AI provider, model and API assumptions current without blind upgrades |
 | [governance/proposal-lifecycle.md](governance/proposal-lifecycle.md) | How proposed, approved, blocked and completed work is tracked |
 | [governance/routine.md](governance/routine.md) | The weekly Contextual Product Steward Routine: schedule, boundaries and safe stewardship mode |
+| [governance/owner-notifications.md](governance/owner-notifications.md) | How the product owner is notified of pull requests and decisions awaiting them |
 | [ecosystem/overview.md](ecosystem/overview.md) | Product roles, data flow and development conventions |
 | [ecosystem/compatibility.md](ecosystem/compatibility.md) | Cross-project interfaces and the version compatibility matrix |
 | [assessments/](assessments/) | Dated health assessments of the ecosystem |
 | [decisions/](decisions/) | Durable decision log |
 | [tooling/codex/](tooling/codex/) | Bounded Codex review runner and reviewer instructions for the cloud Routine (verbatim copies of the canonical files) |
+| [tooling/approvals/](tooling/approvals/) | The owner-approvals summary script run by `.github/workflows/owner-approvals.yml` |
 
 ## What does not live here
 

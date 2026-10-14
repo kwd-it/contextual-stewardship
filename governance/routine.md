@@ -127,6 +127,8 @@ Every run ends with a concise summary, in the handback format of the universal i
 
 If a category has nothing in it, the run says so rather than inventing content. The run's record in this repository is the durable output; the summary is for the product owner's attention.
 
+The product owner is not notified by the summary itself. After the handback the run triggers the owner-approvals workflow (`governance/owner-notifications.md`) with `gh api -X POST repos/kwd-it/contextual-stewardship/actions/workflows/owner-approvals.yml/dispatches -f ref=main`, so that the summary issue is refreshed and the owner is mentioned if new decisions are waiting. A failed dispatch is reported in the handback and not retried; the workflow's own schedule covers it within six hours.
+
 ## Changing this Routine
 
 The schedule, repositories, environment and connectors are configuration in the Routine itself and are changed by the product owner. The behaviour is this file and the rest of this repository: changing it is a governance change and therefore PROPOSE FIRST, recorded in `decisions/README.md` when it changes authority or workflow.
