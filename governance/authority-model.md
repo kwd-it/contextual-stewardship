@@ -55,15 +55,15 @@ Volume is also bounded. If a cycle would open more than three autonomous pull re
 
 Standing permission from the product owner, 2026-10-14, for one category only: the steward may merge its own pull request to the default branch when **all** of the following hold. Unknown or ambiguous is ineligible. Everything else (runtime code, dependencies, CI, new functionality, defaults, configuration, higher-risk work) keeps the approval rules above.
 
-1. The change is exclusively low-risk documentation or test-only maintenance: Markdown files, files under `docs/`, and files under `tests/`.
+1. The change is exclusively low-risk documentation or test-only maintenance: Markdown files, text files under `docs/`, and files under `tests/`. Every touched path is an ordinary file whose diff GitHub can show; binaries, symbolic links, submodules and files without diff content are ineligible, and a rename is judged on both of its paths.
 2. No application runtime code, public interface, behaviour, configuration or dependency changes (`composer.json`, lock files, `package.json`, `phpunit.xml`, `.env*`, and the `app/`, `src/`, `includes/`, `admin/`, `config/`, `database/`, `routes/`, `resources/`, `public/` and `bootstrap/` trees are all outside the category).
 3. No CI workflow, deployment configuration, security policy, authentication or permission changes (`.github/` is outside the category).
-4. No version bump, release, tag or database change: no plugin header, `readme.txt`, release commit or new release heading in a changelog.
-5. No repository governance or AI instruction file changes (`CLAUDE.md`, `AGENTS.md`, `DEVNOTES.md`, `.cursor/`, `.claude/`).
+4. No version bump, release, tag or database change: no plugin header, `readme.txt` or release commit, and no changelog heading added, removed or changed other than "Unreleased" and the Keep a Changelog category headings (Added, Changed, Deprecated, Removed, Fixed, Security).
+5. No repository governance, policy, licence, contract or AI instruction document changes (`CLAUDE.md`, `AGENTS.md`, `DEVNOTES.md`, `GEMINI.md`, `SECURITY.md`, `CONTRIBUTING.md`, `CODE_OF_CONDUCT.md`, `CODEOWNERS`, licence files, `docs/COMPATIBILITY.md`, `docs/PACK-SPEC.md`, any `SKILL.md` or rules file, and the `.cursor/`, `.claude/`, `.agents/`, `.github/` and `governance/` trees).
 6. No test coverage or assertions are weakened: no test file removed, no assertion or test removed without an equal number added, no skip, todo or only marker added.
 7. The pull request comes from a task branch in the same repository, opened by an owner, member or collaborator, against the default branch; never from a fork.
 8. The complete final diff has been reviewed by Codex, all material findings are resolved, and the description records it in the words `owner-notifications.md` recognises plus a `Reviewed head: <sha>` line.
-9. Required validation and every GitHub check on the head have passed; nothing is pending or failing.
+9. Required validation and every GitHub check on the head have completed with success; pending, failed, skipped, neutral or unknown outcomes are all ineligible.
 10. The pull request is mergeable with merge state `clean`, is not a draft, has no review requesting changes, and its head commit is the reviewed commit.
 11. Merging cannot trigger a production deployment: the repository is one of the three listed in `tooling/merge/autonomous-merge.mjs`, where this was verified (see "Deployment safety" below), and the product owner has not withdrawn it.
 12. The change is bounded: at most 20 files and 400 changed lines.

@@ -39,35 +39,57 @@ export const LIMITS = { files: 20, lines: 400 };
 export const REVIEW_RECORDED = /codex review[^\n]*?(no material findings|material findings resolved)/i;
 export const REVIEWED_HEAD = /^reviewed head:\s*([0-9a-f]{7,40})\b/im;
 const TRUSTED_ASSOCIATIONS = new Set(['OWNER', 'MEMBER', 'COLLABORATOR']);
-const FAILED_CONCLUSIONS = new Set(['failure', 'timed_out', 'cancelled', 'action_required', 'startup_failure', 'stale']);
 
-// Files that are never low-risk maintenance, checked before the allow list: CI and
-// deployment configuration, governance and AI instruction files, dependency manifests,
-// runtime configuration and anything that carries a version.
+// Paths that are never low-risk maintenance, checked before the allow list: CI and
+// deployment configuration, governance, policy and AI instruction files, dependency
+// manifests, runtime configuration, contract-defining documents and anything that
+// carries a version.
 const DENY = [
-  /^\.github\//, /^\.cursor\//, /^\.claude\//, /^\.codex\//,
-  /(^|\/)(CLAUDE|AGENTS|DEVNOTES)\.md$/i,
+  /^\.github\//, /^\.cursor\//, /^\.claude\//, /^\.codex\//, /^\.agents?\//, /^governance\//,
+  /(^|\/)(CLAUDE|AGENTS|DEVNOTES|GEMINI|SECURITY|CONTRIBUTING|CODE_OF_CONDUCT|CODEOWNERS|COMPATIBILITY|PACK-SPEC|SKILL|copilot-instructions)(\.md)?$/i,
+  /(^|\/)(LICENSE|LICENCE|COPYING|NOTICE|FUNDING)(\.|$)/i, /(^|\/)\.?[a-z]*rules$/i,
   /(^|\/)(composer|package|package-lock)\.json$/, /(^|\/)composer\.lock$/, /(^|\/)(yarn|pnpm)-lock/,
   /(^|\/)phpunit(\.dist)?\.xml(\.dist)?$/, /(^|\/)\.env/, /(^|\/)Dockerfile/, /(^|\/)readme\.txt$/i,
   /(^|\/)(config|database|routes|app|src|includes|admin|resources|public|bootstrap)\//,
 ];
-// Everything a change may touch: Markdown anywhere, plain files under docs/, and files
+// Everything a change may touch: Markdown anywhere, text files under docs/, and files
 // under tests/. The deny list above wins.
-const ALLOW = [/\.md$/i, /^docs\/.*\.(md|txt|png|jpg|jpeg|gif|svg)$/i, /^tests\//];
+const ALLOW = [/\.md$/i, /^docs\/.*\.(md|txt)$/i, /^tests\//];
 
 const ASSERTION = /(\$this->assert\w*\(|\bassert\w*\(|\bexpect\(|->to[A-Z]\w*\(|->not->|->assert\w*\()/;
 const TEST_DECLARATION = /(public function test\w*\(|#\[Test\]|@test\b|\bit\(\s*['"]|\btest\(\s*['"])/;
 const WEAKENING = /(markTestSkipped|markTestIncomplete|->skip\(|->todo\(|->only\(|@group\s+skip|xit\(|xtest\(|@skip)/;
-const RELEASE_HEADING = /^\+\s*#{1,3}\s*\[?v?\d+\.\d+(\.\d+)?\]?/m;
+// Headings a maintenance change may add to or remove from a changelog: "Unreleased"
+// and the Keep a Changelog category headings. Anything else (a version, a date, a
+// restructuring) is a release or an editorial decision and is left to the owner.
+const PERMITTED_CHANGELOG_HEADING = /^#{1,6}\s*(\[?unreleased\]?|added|changed|deprecated|removed|fixed|security)\s*$/i;
 
-export function checkFile(file) {
+function pathReasons(path) {
+  if (DENY.some((re) => re.test(path))) return [`${path}: not maintenance (denied path)`];
+  if (!ALLOW.some((re) => re.test(path))) return [`${path}: outside the documentation and tests allow list`];
+  return [];
+}
+
+// `types` maps each non-removed path to its Git object type as GitHub reports it
+// ('file', 'symlink', 'submodule', 'dir'); anything but 'file' is ineligible, and a
+// path with no recorded type is treated as unknown.
+export function checkFile(file, types = {}) {
   const path = file.filename;
-  const reasons = [];
-  if (DENY.some((re) => re.test(path))) reasons.push(`${path}: not maintenance (denied path)`);
-  else if (!ALLOW.some((re) => re.test(path))) reasons.push(`${path}: outside the documentation and tests allow list`);
-  if (file.previous_filename && DENY.some((re) => re.test(file.previous_filename))) reasons.push(`${file.previous_filename}: renamed from a denied path`);
-  if (/^tests\//.test(path) && file.status === 'removed') reasons.push(`${path}: test file removed`);
-  const patch = file.patch || '';
+  const reasons = pathReasons(path);
+  if (file.previous_filename) {
+    reasons.push(...pathReasons(file.previous_filename).map((r) => `renamed from ${r}`));
+    if (/^tests\//.test(file.previous_filename) && !/^tests\//.test(path)) reasons.push(`${file.previous_filename}: moved out of tests/`);
+  }
+  if (file.status === 'removed' && /^tests\//.test(path)) reasons.push(`${path}: test file removed`);
+  if (file.status !== 'removed') {
+    const type = types[path];
+    if (type !== 'file') reasons.push(`${path}: ${type ? `is a ${type}` : 'file type unknown'}, not an ordinary file`);
+  }
+  const changes = (file.additions || 0) + (file.deletions || 0) + (file.changes || 0);
+  if (typeof file.patch !== 'string' || (file.patch === '' && file.status !== 'removed')) {
+    if (file.status !== 'removed' || changes > 0) reasons.push(`${path}: no diff content available`);
+  }
+  const patch = typeof file.patch === 'string' ? file.patch : '';
   const added = patch.split('\n').filter((l) => l.startsWith('+') && !l.startsWith('+++'));
   const removed = patch.split('\n').filter((l) => l.startsWith('-') && !l.startsWith('---'));
   if (/^tests\//.test(path)) {
@@ -79,15 +101,19 @@ export function checkFile(file) {
     const addedTests = added.filter((l) => TEST_DECLARATION.test(l)).length;
     if (removedTests > addedTests) reasons.push(`${path}: removes tests (${removedTests} removed, ${addedTests} added)`);
   }
-  if (/changelog\.md$/i.test(path) && RELEASE_HEADING.test(added.join('\n'))) reasons.push(`${path}: adds a release heading`);
+  if (/changelog\.md$/i.test(path)) {
+    const headings = [...added, ...removed].map((l) => l.slice(1).trim()).filter((l) => /^#{1,6}\s/.test(l));
+    if (headings.some((h) => !PERMITTED_CHANGELOG_HEADING.test(h))) reasons.push(`${path}: changes a heading other than Unreleased or a Keep a Changelog category`);
+  }
   return reasons;
 }
 
 // Pure evaluation. `input` carries everything read from GitHub:
-//   repo, pr (REST pull request object), files (REST files list), reviews, checkRuns,
-//   statuses, reviewedSha (from --reviewed or the description).
+//   repo, pr (REST pull request object), files (REST files list), types (path -> Git
+//   object type at the head), reviews, checkRuns, statuses, reviewedSha (from
+//   --reviewed or the description).
 export function evaluate(input) {
-  const { repo, pr, files, reviews = [], checkRuns = [], statuses = [], reviewedSha } = input;
+  const { repo, pr, files, types = {}, reviews = [], checkRuns = [], statuses = [], reviewedSha } = input;
   const reasons = [];
   const policy = REPOSITORIES[repo];
 
@@ -114,15 +140,18 @@ export function evaluate(input) {
   for (const r of reviews) if (r.user && r.state !== 'COMMENTED') latestByUser.set(r.user.login, r.state);
   if ([...latestByUser.values()].includes('CHANGES_REQUESTED')) reasons.push('a review requests changes');
 
+  // Every check must have completed with success; skipped, neutral, pending, failed
+  // and unknown outcomes are all ineligible.
   if (checkRuns.some((r) => r.status !== 'completed') || statuses.some((s) => s.state === 'pending')) reasons.push('checks pending');
-  if (checkRuns.some((r) => FAILED_CONCLUSIONS.has(r.conclusion)) || statuses.some((s) => s.state === 'failure' || s.state === 'error')) reasons.push('checks failing');
+  const notSuccessful = [...checkRuns.filter((r) => r.status === 'completed' && r.conclusion !== 'success'), ...statuses.filter((s) => s.state !== 'pending' && s.state !== 'success')];
+  if (notSuccessful.length > 0) reasons.push(`checks not all successful (${notSuccessful.map((c) => c.conclusion || c.state).join(', ')})`);
 
   if (!Array.isArray(files) || files.length === 0) reasons.push('no files');
   else {
     if (files.length > LIMITS.files) reasons.push(`${files.length} files changed (limit ${LIMITS.files})`);
     const lines = files.reduce((n, f) => n + (f.additions || 0) + (f.deletions || 0), 0);
     if (lines > LIMITS.lines) reasons.push(`${lines} lines changed (limit ${LIMITS.lines})`);
-    for (const f of files) reasons.push(...checkFile(f));
+    for (const f of files) reasons.push(...checkFile(f, types));
   }
 
   return { eligible: reasons.length === 0, reasons, mergeMethod: policy?.mergeMethod, headSha, checks: checkRuns.length + statuses.length };
@@ -167,11 +196,24 @@ async function fetchPullRequest(repo, number) {
   return pr;
 }
 
+// Git object type of each non-removed path at the head commit, from the contents API.
+async function fetchTypes(repo, files, sha) {
+  const types = {};
+  for (const f of files) {
+    if (f.status === 'removed') continue;
+    const { ok, data } = await api(`/repos/${repo}/contents/${f.filename.split('/').map(encodeURIComponent).join('/')}?ref=${sha}`);
+    if (ok && data && !Array.isArray(data) && typeof data.type === 'string') types[f.filename] = data.type;
+  }
+  return types;
+}
+
 async function main(argv) {
-  const [repo, numberArg] = argv.filter((a) => !a.startsWith('--'));
-  const number = Number(numberArg);
   const dryRun = argv.includes('--dry-run');
-  const reviewedArg = argv.includes('--reviewed') ? argv[argv.indexOf('--reviewed') + 1] : undefined;
+  const reviewedIndex = argv.indexOf('--reviewed');
+  const reviewedArg = reviewedIndex >= 0 ? argv[reviewedIndex + 1] : undefined;
+  const positional = argv.filter((a, i) => !a.startsWith('--') && i !== reviewedIndex + 1);
+  const [repo, numberArg] = positional;
+  const number = Number(numberArg);
   if (!repo || !Number.isInteger(number)) throw new Error('usage: autonomous-merge.mjs <owner/repo> <number> --reviewed <sha> [--dry-run]');
   if (!TOKEN && !dryRun) throw new Error('GITHUB_TOKEN is required');
 
@@ -180,11 +222,12 @@ async function main(argv) {
   const files = await listAll(`/repos/${repo}/pulls/${number}/files`);
   const reviews = await listAll(`/repos/${repo}/pulls/${number}/reviews`);
   const sha = pr.head.sha;
+  const types = await fetchTypes(repo, files, sha);
   const checkRuns = await listAll(`/repos/${repo}/commits/${sha}/check-runs`, 'check_runs');
   const statuses = await listAll(`/repos/${repo}/commits/${sha}/status`, 'statuses');
   const reviewedSha = reviewedArg || (pr.body || '').match(REVIEWED_HEAD)?.[1];
 
-  const result = evaluate({ repo, pr, files, reviews, checkRuns, statuses, reviewedSha });
+  const result = evaluate({ repo, pr, files, types, reviews, checkRuns, statuses, reviewedSha });
   console.log(`${repo}#${number} "${pr.title}" head ${sha.slice(0, 7)}: ${result.eligible ? 'ELIGIBLE' : 'NOT ELIGIBLE'} for autonomous merge`);
   for (const r of result.reasons) console.log(`  - ${r}`);
   if (!result.eligible) return 2;
@@ -212,7 +255,6 @@ async function main(argv) {
   return 0;
 }
 
-const invokedDirectly = process.argv[1] && pathToFileURL(process.argv[1]).href === import.meta.url;
-if (invokedDirectly) {
+if (process.argv[1] && pathToFileURL(process.argv[1]).href === import.meta.url) {
   main(process.argv.slice(2)).then((code) => process.exit(code)).catch((err) => { console.error(err.message || err); process.exit(1); });
 }

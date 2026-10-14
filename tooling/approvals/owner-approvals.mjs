@@ -42,12 +42,14 @@ export const REVIEW_RECORDED = /codex review[^\n]*?(no material findings|materia
 // A pull request the steward will merge itself (governance/authority-model.md, D-016,
 // or a task-authorised merge) carries this line in its description.
 export const AUTOMATION_MARK = /^merge:\s*(automatic|steward)\b/im;
+// The head commit the recorded review covered; a head that no longer matches it has
+// not been reviewed.
+export const REVIEWED_HEAD = /^reviewed head:\s*([0-9a-f]{7,40})\b/im;
 // A one-sentence plain-English summary the steward writes for the owner.
 const OWNER_SUMMARY = /^(?:owner summary:|#{2,4}[ \t]*owner summary[ \t]*\r?\n+)[ \t]*(.+?)[ \t]*$/im;
 
 const DECISION_LABELS = ['status:proposed', 'status:needs-decision'];
 const INTERVENTION_LABELS = ['status:blocked'];
-const FAILED_CONCLUSIONS = new Set(['failure', 'timed_out', 'cancelled', 'action_required', 'startup_failure', 'stale']);
 
 const PRODUCTS = {
   'kwd-it/contextualwp': 'ContextualWP',
@@ -125,12 +127,14 @@ export function classifyPullRequest(repo, detail, { reviews = [], runs = [], sta
   for (const r of reviews) if (r.user && r.state !== 'COMMENTED') latestByUser.set(r.user.login, r.state);
   if ([...latestByUser.values()].includes('CHANGES_REQUESTED')) reasons.push('changes requested');
 
+  // Only a completed check with conclusion success counts as passed; skipped, neutral,
+  // failed and unknown outcomes all keep the pull request waiting.
   const pending = runs.some((r) => r.status !== 'completed') || statuses.some((s) => s.state === 'pending');
-  const failing = runs.some((r) => FAILED_CONCLUSIONS.has(r.conclusion)) || statuses.some((s) => s.state === 'failure' || s.state === 'error');
+  const failing = runs.some((r) => r.status === 'completed' && r.conclusion !== 'success') || statuses.some((s) => s.state !== 'pending' && s.state !== 'success');
   if (pending) reasons.push('checks pending');
-  if (failing) reasons.push('checks failing');
+  if (failing) reasons.push('checks not all successful');
   const checkCount = runs.length + statuses.length;
-  const checkSummary = checkCount === 0 ? 'no automated checks' : pending ? 'checks pending' : failing ? 'checks failing' : `${checkCount} check${checkCount === 1 ? '' : 's'} passed`;
+  const checkSummary = checkCount === 0 ? 'no automated checks' : pending ? 'checks pending' : failing ? 'checks not all successful' : `${checkCount} check${checkCount === 1 ? '' : 's'} passed`;
 
   if (detail.mergeable === false || detail.mergeable_state === 'dirty') reasons.push('merge conflicts');
   else if (detail.mergeable === null || detail.mergeable_state === 'unknown') reasons.push('mergeability not yet computed');
@@ -140,7 +144,8 @@ export function classifyPullRequest(repo, detail, { reviews = [], runs = [], sta
   else if (detail.mergeable_state !== 'clean') reasons.push(`merge state ${detail.mergeable_state}`);
 
   const body = detail.body || '';
-  const codexRecorded = REVIEW_RECORDED.test(body);
+  const reviewedHead = body.match(REVIEWED_HEAD)?.[1];
+  const codexRecorded = REVIEW_RECORDED.test(body) && (!reviewedHead || sha.toLowerCase().startsWith(reviewedHead.toLowerCase()));
   const automatic = AUTOMATION_MARK.test(body);
   const ageHours = (now - Date.parse(detail.created_at || now)) / 3600000;
   const ref = `[#${detail.number}](${detail.html_url})`;
@@ -159,7 +164,8 @@ export function classifyPullRequest(repo, detail, { reviews = [], runs = [], sta
     return { category: 'intervention', kind: 'stuck', key: keyFor(detail, codexRecorded), line: `${name}: automatic merge of "${summary}" has not happened after ${AUTOMATION_GRACE_HOURS} hours (${ref})` };
   }
   if (!codexRecorded) {
-    return { category: 'intervention', kind: 'unreviewed', key: keyFor(detail, codexRecorded), line: `${name}: "${summary}" needs an independent review before it can be merged (${ref}; ${checkSummary}, head ${short(sha)})` };
+    const why = reviewedHead && !sha.toLowerCase().startsWith(reviewedHead.toLowerCase()) ? 'changed since its review and needs reviewing again' : 'needs an independent review';
+    return { category: 'intervention', kind: 'unreviewed', key: keyFor(detail, codexRecorded), line: `${name}: "${summary}" ${why} before it can be merged (${ref}; ${checkSummary}, head ${short(sha)})` };
   }
   return { category: 'decision', kind: 'merge', key: keyFor(detail, codexRecorded), line: `${name}: ${asQuestion(`merge "${summary}"`)} (${ref}; reviewed, ${checkSummary})` };
 }

@@ -1,5 +1,5 @@
 // Positive and negative cases for the autonomous merge policy (D-016).
-// Run: node --test tooling/merge/
+// Run: node --test tooling/merge/autonomous-merge.test.mjs
 
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
@@ -24,12 +24,20 @@ function file(filename, patch, extra = {}) {
   return { filename, status: 'modified', additions: added, deletions: removed, patch, ...extra };
 }
 
+// Ordinary files unless a test says otherwise.
+const typesOf = (files, override = {}) => Object.fromEntries(files.filter((f) => f.status !== 'removed').map((f) => [f.filename, override[f.filename] || 'file']));
+
 const fixtureTest = file('tests/ExampleTest.php',
   "-\t\t$this->seed('Old Name');\n+\t\t$this->seed('Example Homes');\n-\t\t$this->assertSame('Old Name', $x);\n+\t\t$this->assertSame('Example Homes', $x);");
 const changelog = file('CHANGELOG.md', '+- Neutralised two fixture titles. Assertions unchanged.');
 
 function input(overrides = {}) {
-  return { repo: 'kwd-it/contextualwp-housebuilder-pack', pr: pr(), files: [fixtureTest, changelog], reviews: [], checkRuns: [], statuses: [], reviewedSha: 'a65c96f', ...overrides };
+  const files = overrides.files || [fixtureTest, changelog];
+  return { repo: 'kwd-it/contextualwp-housebuilder-pack', pr: pr(), files, types: typesOf(files), reviews: [], checkRuns: [], statuses: [], reviewedSha: 'a65c96f', ...overrides };
+}
+
+function consoleInput(files) {
+  return input({ repo: 'kwd-it/contextual-console', pr: pr({ base: { ref: 'master', repo: { full_name: 'kwd-it/contextual-console' } }, head: { sha: SHA, repo: { full_name: 'kwd-it/contextual-console' } } }), files });
 }
 
 test('safe test-fixture change with changelog entry qualifies', () => {
@@ -40,18 +48,29 @@ test('safe test-fixture change with changelog entry qualifies', () => {
 });
 
 test('documentation-only change qualifies, including docs/ and README', () => {
-  const r = evaluate(input({ repo: 'kwd-it/contextual-console', pr: pr({ base: { ref: 'master', repo: { full_name: 'kwd-it/contextual-console' } }, head: { sha: SHA, repo: { full_name: 'kwd-it/contextual-console' } } }), files: [file('README.md', '-old\n+new'), file('docs/OPERATIONS.md', '+note'), changelog] }));
+  const r = evaluate(consoleInput([file('README.md', '-old\n+new'), file('docs/OPERATIONS.md', '+note'), changelog]));
   assert.deepEqual(r.reasons, []);
   assert.equal(r.eligible, true);
 });
 
-test('passing checks qualify; pending or failing checks do not', () => {
+test('Unreleased and Keep a Changelog category headings are fine; any other heading change is not', () => {
+  assert.equal(evaluate(input({ files: [file('CHANGELOG.md', '+## [Unreleased]\n+- note')] })).eligible, true);
+  assert.equal(evaluate(input({ files: [file('docs/CHANGELOG.md', '+### Changed\n+- note\n+### Fixed\n+- fix')] })).eligible, true);
+  for (const patch of ['+## [1.4.0] - 2026-10-14', '+## Release 1.2.3', '+## v0.4.9', '-## Unreleased\n+## 0.4.9', '+### Notes', '+## 2026-10-14']) {
+    const r = evaluate(input({ files: [file('CHANGELOG.md', patch)] }));
+    assert.equal(r.eligible, false, patch);
+    assert.match(r.reasons.join(), /changes a heading other than Unreleased or a Keep a Changelog category/);
+  }
+});
+
+test('successful checks qualify; pending, failing, skipped or neutral checks do not', () => {
   const ok = evaluate(input({ checkRuns: [{ status: 'completed', conclusion: 'success' }], statuses: [{ state: 'success' }] }));
   assert.equal(ok.eligible, true);
-  const pending = evaluate(input({ checkRuns: [{ status: 'in_progress', conclusion: null }] }));
-  assert.match(pending.reasons.join(), /checks pending/);
-  const failing = evaluate(input({ checkRuns: [{ status: 'completed', conclusion: 'failure' }] }));
-  assert.match(failing.reasons.join(), /checks failing/);
+  assert.match(evaluate(input({ checkRuns: [{ status: 'in_progress', conclusion: null }] })).reasons.join(), /checks pending/);
+  assert.match(evaluate(input({ checkRuns: [{ status: 'completed', conclusion: 'failure' }] })).reasons.join(), /not all successful \(failure\)/);
+  assert.match(evaluate(input({ checkRuns: [{ status: 'completed', conclusion: 'skipped' }] })).reasons.join(), /not all successful \(skipped\)/);
+  assert.match(evaluate(input({ checkRuns: [{ status: 'completed', conclusion: 'neutral' }] })).reasons.join(), /not all successful \(neutral\)/);
+  assert.match(evaluate(input({ statuses: [{ state: 'error' }] })).reasons.join(), /not all successful \(error\)/);
 });
 
 test('CI workflow changes cannot qualify', () => {
@@ -60,31 +79,31 @@ test('CI workflow changes cannot qualify', () => {
   assert.match(r.reasons.join(), /\.github\/workflows\/tests\.yml: not maintenance/);
 });
 
-test('Composer dependency changes cannot qualify', () => {
-  for (const name of ['composer.json', 'composer.lock', 'package.json']) {
+test('Composer and other dependency changes cannot qualify', () => {
+  for (const name of ['composer.json', 'composer.lock', 'package.json', 'package-lock.json']) {
     const r = evaluate(input({ files: [file(name, '-"a": "1"\n+"a": "2"')] }));
     assert.equal(r.eligible, false, name);
-    assert.match(r.reasons.join(), new RegExp(`${name.replace('.', '\\.')}: not maintenance`));
+    assert.match(r.reasons.join(), new RegExp(`${name.replace(/\./g, '\\.')}: not maintenance`));
   }
 });
 
-test('runtime code changes cannot qualify', () => {
-  for (const name of ['includes/helpers/utilities.php', 'src/Services/PlotsRestService.php', 'app/Core/Models/Run.php', 'contextwp.php', 'config/app.php', 'routes/web.php', 'resources/views/x.blade.php']) {
+test('runtime code and configuration changes cannot qualify', () => {
+  for (const name of ['includes/helpers/utilities.php', 'src/Services/PlotsRestService.php', 'app/Core/Models/Run.php', 'contextwp.php', 'config/app.php', 'routes/web.php', 'resources/views/x.blade.php', 'phpunit.xml', '.env.example', 'Dockerfile', 'docs/diagram.png']) {
     const r = evaluate(input({ files: [file(name, '+x')] }));
     assert.equal(r.eligible, false, name);
   }
 });
 
-test('governance and AI instruction files cannot qualify', () => {
-  for (const name of ['CLAUDE.md', 'AGENTS.md', 'DEVNOTES.md', 'docs/DEVNOTES.md', '.cursor/skills/x/SKILL.md', '.github/PULL_REQUEST_TEMPLATE.md']) {
+test('governance, policy, licence, contract and AI instruction documents cannot qualify', () => {
+  for (const name of ['CLAUDE.md', 'AGENTS.md', 'DEVNOTES.md', 'docs/DEVNOTES.md', '.cursor/skills/x/SKILL.md', '.agents/skills/example/SKILL.md', '.github/PULL_REQUEST_TEMPLATE.md', 'SECURITY.md', 'CONTRIBUTING.md', 'CODE_OF_CONDUCT.md', 'LICENSE', 'LICENSE.md', 'governance/authority-model.md', 'docs/COMPATIBILITY.md', 'docs/PACK-SPEC.md', '.cursorrules', 'GEMINI.md', '.github/copilot-instructions.md', 'CODEOWNERS']) {
     const r = evaluate(input({ files: [file(name, '+x')] }));
     assert.equal(r.eligible, false, name);
+    assert.match(r.reasons.join(), /denied path/, name);
   }
 });
 
-test('version-carrying files and release headings cannot qualify', () => {
+test('version-carrying files and release commits cannot qualify', () => {
   assert.equal(evaluate(input({ files: [file('readme.txt', '-Stable tag: 1\n+Stable tag: 2')] })).eligible, false);
-  assert.equal(evaluate(input({ files: [file('CHANGELOG.md', '+## [1.4.0] - 2026-10-14')] })).eligible, false);
   assert.equal(evaluate(input({ pr: pr({ title: 'chore(release): prepare v1.4.0' }) })).eligible, false);
 });
 
@@ -99,6 +118,27 @@ test('weakened tests cannot qualify', () => {
   assert.match(evaluate(input({ files: [deleted] })).reasons.join(), /test file removed/);
   const pestOnly = file('tests/Feature/XTest.php', "+it('works', fn () => expect(1)->toBe(1))->only();");
   assert.match(evaluate(input({ files: [pestOnly] })).reasons.join(), /skip, todo or only/);
+});
+
+test('renames are judged on both paths and may not move tests out of tests/', () => {
+  const runtimeToDocs = file('docs/old.md', '', { status: 'renamed', previous_filename: 'contextwp.php', additions: 0, deletions: 0 });
+  assert.match(evaluate(input({ files: [runtimeToDocs] })).reasons.join(), /renamed from contextwp\.php: outside/);
+  const testToDocs = file('docs/ExampleTest.md', '', { status: 'renamed', previous_filename: 'tests/ExampleTest.php', additions: 0, deletions: 0 });
+  assert.match(evaluate(input({ files: [testToDocs] })).reasons.join(), /moved out of tests\//);
+  const instructionToDocs = file('docs/notes.md', '', { status: 'renamed', previous_filename: 'CLAUDE.md', additions: 0, deletions: 0 });
+  assert.match(evaluate(input({ files: [instructionToDocs] })).reasons.join(), /renamed from CLAUDE\.md: not maintenance/);
+  assert.match(checkFile({ filename: 'docs/old.md', previous_filename: 'CLAUDE.md', status: 'renamed', patch: '' }, { 'docs/old.md': 'file' }).join(), /denied path/);
+});
+
+test('missing diff content and non-file Git objects fail closed', () => {
+  const noPatch = { filename: 'tests/ExampleTest.php', status: 'modified', additions: 0, deletions: 20 };
+  assert.match(evaluate(input({ files: [noPatch], types: { 'tests/ExampleTest.php': 'file' } })).reasons.join(), /no diff content available/);
+  const files = [fixtureTest, changelog];
+  assert.match(evaluate(input({ files, types: typesOf(files, { 'tests/ExampleTest.php': 'submodule' }) })).reasons.join(), /is a submodule/);
+  assert.match(evaluate(input({ files, types: typesOf(files, { 'CHANGELOG.md': 'symlink' }) })).reasons.join(), /is a symlink/);
+  assert.match(evaluate(input({ files, types: {} })).reasons.join(), /file type unknown/);
+  const removedWithPatch = file('docs/obsolete.md', '-gone', { status: 'removed' });
+  assert.equal(evaluate(input({ files: [removedWithPatch], types: {} })).eligible, true);
 });
 
 test('unreviewed, changed-head, draft, conflicting or closed pull requests cannot qualify', () => {
@@ -136,8 +176,4 @@ test('size limits bound the category', () => {
   assert.match(evaluate(input({ files: many })).reasons.join(), /21 files changed/);
   const big = file('docs/big.md', Array.from({ length: 401 }, () => '+line').join('\n'));
   assert.match(evaluate(input({ files: [big] })).reasons.join(), /401 lines changed/);
-});
-
-test('checkFile reports a rename out of a denied path', () => {
-  assert.match(checkFile({ filename: 'docs/old.md', previous_filename: 'CLAUDE.md', status: 'renamed', patch: '' }).join(), /renamed from a denied path/);
 });

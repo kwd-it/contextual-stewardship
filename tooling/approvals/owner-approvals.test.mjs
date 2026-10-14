@@ -56,6 +56,23 @@ test('an unreviewed but mergeable pull request needs intervention', () => {
   assert.match(item.key, /:unreviewed$/);
 });
 
+test('a reviewed head that no longer matches the head commit is not presented as reviewed', () => {
+  const stale = classifyPullRequest('kwd-it/contextualwp', detail({ body: `${REVIEWED}Reviewed head: deadbeef0000000\n` }), passed);
+  assert.equal(stale.category, 'intervention');
+  assert.match(stale.line, /changed since its review/);
+  assert.match(stale.key, /:unreviewed$/);
+  const matching = classifyPullRequest('kwd-it/contextualwp', detail({ body: `${REVIEWED}Reviewed head: 0e625c1\n` }), passed);
+  assert.equal(matching.category, 'decision');
+});
+
+test('skipped or neutral checks keep a pull request waiting', () => {
+  for (const conclusion of ['skipped', 'neutral', 'cancelled']) {
+    const item = classifyPullRequest('kwd-it/contextualwp', detail(), { runs: [{ status: 'completed', conclusion }], now: NOW });
+    assert.equal(item.kind, 'waiting', conclusion);
+    assert.match(item.line, /checks not all successful/);
+  }
+});
+
 test('proposal and blocked issues classify with plain wording', () => {
   const proposal = classifyIssue({ number: 5, html_url: 'u5', title: 'Proposal F-2(b): move the OpenAI nano tier off gpt-5.4-nano', body: 'Owner summary: Approve the proposed OpenAI model change.', labels: [{ name: 'status:proposed' }, { name: 'repo:contextualwp' }] });
   assert.equal(proposal.category, 'decision');
