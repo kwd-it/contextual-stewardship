@@ -14,10 +14,11 @@
 //                      a prefix of at least 7 characters); may be omitted when the pull
 //                      request description carries a "Reviewed head: <sha>" line
 //   --dry-run          evaluate and report, merge nothing
-//   --via-gh           send every request through the authenticated `gh api` command
-//                      (the default when GITHUB_TOKEN is absent); `gh` honours the
-//                      HTTPS proxy of environments such as the Routine's, which Node's
-//                      fetch does not
+//   --via-gh           send every request through the `gh api` command (the default
+//                      when GITHUB_TOKEN is absent). `gh` honours the HTTPS proxy of
+//                      environments such as the Routine's, which Node's fetch does not,
+//                      and that proxy authenticates the requests itself, so the probe
+//                      below asks the API who it is rather than trusting `gh auth status`
 //
 // Exit codes: 0 merged (or already merged); 2 not eligible (reasons printed);
 //             1 error.
@@ -316,8 +317,13 @@ async function main(argv) {
   const { repo, number, dryRun, reviewed: reviewedArg } = parseArgs(argv);
   if (!repo || !Number.isInteger(number)) throw new Error('usage: autonomous-merge.mjs <owner/repo> <number> --reviewed <sha> [--dry-run]');
   if (VIA_GH) {
-    const auth = spawnSync(process.platform === 'win32' ? 'gh.exe' : 'gh', ['auth', 'status'], { encoding: 'utf8' });
-    if (auth.status !== 0) throw new Error('GITHUB_TOKEN is absent and gh is not authenticated');
+    // Preflight: one authenticated read. In the Routine environment `gh auth status`
+    // rejects the placeholder token while `gh api` succeeds through the proxy
+    // (observed 2026-10-14), so the API itself is the only reliable check.
+    let who;
+    try { who = await api('/user'); } catch (err) { throw new Error(`gh api cannot reach GitHub: ${err.message}`); }
+    if (!who.ok || typeof who.data?.login !== 'string') throw new Error(`gh api is not authenticated (HTTP ${who.status})`);
+    console.log(`gh api authenticated as ${who.data.login}`);
   }
 
   const pr = await fetchPullRequest(repo, number);
