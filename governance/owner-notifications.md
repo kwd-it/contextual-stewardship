@@ -12,7 +12,7 @@ One GitHub Actions workflow in this repository, `.github/workflows/owner-approva
 
 1. reads the open pull requests of the four ecosystem repositories and the open issues of this repository through the REST API; GitHub is the only source, so the summary reflects the current state, not an earlier assessment;
 2. rewrites the body of the single summary issue, **Pending owner decisions (automated summary)**, labelled `type:approvals`, grouped by the action the owner needs to take (editing an issue body sends no notification);
-3. posts one comment on that issue, mentioning `@kwdit`, only when an action item appears that was not in the previous notification. The previous set is stored in an HTML comment in the issue body, so the check is idempotent and nothing is notified twice. Items that disappear (merged, decided, closed) update the body silently.
+3. posts one comment on that issue, mentioning `@kwdit`, only when an action item appears that has not been notified before. The set of notified items is stored in an HTML comment in the issue body and repeated in each notification comment, and the run reads both, so a failed write in either place can neither suppress nor duplicate a notification. An item stays remembered while it is open in any state, so a pull request that drops out of the action set for a moment (a re-run of its checks, say) and returns is not notified again. Items that disappear (merged, decided, closed) update the body silently.
 
 The comment is from `github-actions[bot]`, a different actor, so GitHub delivers it as a mention. Notifications reach the owner through whatever GitHub notification settings they hold; see "Owner configuration".
 
@@ -20,12 +20,12 @@ The comment is from `github-actions[bot]`, a different actor, so GitHub delivers
 
 | Group | Contents | Rule |
 |---|---|---|
-| Ready to merge | Open pull requests | Not a draft; no review requesting changes; every check run and commit status on the head completed successfully (none pending or failing); GitHub reports the head mergeable and clean; the description records the Codex review. A pull request with no checks configured is reported as such. |
+| Ready to merge | Open pull requests | Not a draft; no review requesting changes; every check run and commit status on the head (all pages) completed successfully, none pending or failing; GitHub reports the head mergeable with merge state `clean`; the description records a completed Codex review with the words "Codex review" followed on the same line by "no material findings" or "material findings resolved". A pull request with no checks configured is reported as such. |
 | Product decision required | Issues in this repository | `status:proposed` or `status:needs-decision` (`governance/proposal-lifecycle.md`). |
-| Human intervention required | Issues and pull requests | Issues with `status:blocked`; pull requests whose description does not record a Codex review (for example a safe-stewardship-mode pull request awaiting review). |
-| Waiting on automation | Open pull requests | Everything else: draft, checks pending or failing, conflicts, changes requested. Listed in the body for information only; never notified, because the steward resolves these itself. |
+| Human intervention required | Issues and pull requests | Issues with `status:blocked`; pull requests that would otherwise be ready but whose description does not record a completed Codex review in those words (for example a safe-stewardship-mode pull request that says the review is outstanding). |
+| Waiting on automation | Open pull requests | Any pull request that is a draft, has checks pending or failing, has conflicts, is behind or blocked, or has a review requesting changes, whatever its review state. Listed in the body for information only; never notified, because the steward resolves these itself. |
 
-A pull request re-enters the notification when its head commit changes, because what the owner would merge has changed. CI failures, pending checks and conflicts never notify.
+A pull request is notified again when its head commit changes, or when a completed review is recorded for a head that was notified as unreviewed, because what the owner would merge has changed. CI failures, pending checks and conflicts never notify.
 
 ### Triggers
 

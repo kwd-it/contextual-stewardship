@@ -4,7 +4,7 @@
 // Reads the current open pull requests and issues of the ecosystem repositories
 // through the GitHub REST API, maintains one summary issue in the stewardship
 // repository, and comments on that issue (mentioning the product owner) only when
-// an action item appears that was not in the previous notification.
+// an action item appears that has not been notified before.
 //
 // Behaviour and rationale: governance/owner-notifications.md.
 //
@@ -30,7 +30,12 @@ const OWNER_LOGIN = process.env.OWNER_LOGIN || 'kwdit';
 const SUMMARY_LABEL = 'type:approvals';
 const SUMMARY_TITLE = 'Pending owner decisions (automated summary)';
 const DRY_RUN = process.argv.includes('--dry-run');
-const STATE_MARK = 'owner-approvals:state';
+const STATE_MARK = 'owner-approvals:notified';
+const BOT_LOGIN = 'github-actions[bot]';
+
+// A pull request description must record a completed Codex review in these words
+// (governance/owner-notifications.md). "Codex review outstanding" does not count.
+const REVIEW_RECORDED = /codex review[^\n]*?(no material findings|material findings resolved)/i;
 
 const DECISION_LABELS = ['status:proposed', 'status:needs-decision'];
 const INTERVENTION_LABELS = ['status:blocked'];
@@ -50,14 +55,29 @@ async function api(path, { method = 'GET', body } = {}) {
   return { status: res.status, data: res.status === 204 ? null : await res.json() };
 }
 
+// Paginated read of an endpoint that returns an array.
 async function list(path) {
   const sep = path.includes('?') ? '&' : '?';
   const out = [];
-  for (let page = 1; page <= 10; page += 1) {
+  for (let page = 1; page <= 20; page += 1) {
     const { data } = await api(`${path}${sep}per_page=100&page=${page}`);
     if (!Array.isArray(data) || data.length === 0) break;
     out.push(...data);
     if (data.length < 100) break;
+  }
+  return out;
+}
+
+// Paginated read of an endpoint that wraps its array in an object with total_count
+// (check runs and combined commit statuses).
+async function listNested(path, field) {
+  const sep = path.includes('?') ? '&' : '?';
+  const out = [];
+  for (let page = 1; page <= 20; page += 1) {
+    const { data } = await api(`${path}${sep}per_page=100&page=${page}`);
+    const chunk = data?.[field] ?? [];
+    out.push(...chunk);
+    if (chunk.length < 100 || out.length >= (data?.total_count ?? 0)) break;
   }
   return out;
 }
@@ -87,10 +107,8 @@ async function classifyPullRequest(repo, pr) {
   for (const r of reviews) if (r.user && r.state !== 'COMMENTED') latestByUser.set(r.user.login, r.state);
   if ([...latestByUser.values()].includes('CHANGES_REQUESTED')) reasons.push('changes requested');
 
-  const { data: checks } = await api(`/repos/${repo}/commits/${sha}/check-runs`);
-  const runs = checks?.check_runs ?? [];
-  const { data: combined } = await api(`/repos/${repo}/commits/${sha}/status`);
-  const statuses = combined?.statuses ?? [];
+  const runs = await listNested(`/repos/${repo}/commits/${sha}/check-runs`, 'check_runs');
+  const statuses = await listNested(`/repos/${repo}/commits/${sha}/status`, 'statuses');
   const pending = runs.some((r) => r.status !== 'completed') || statuses.some((s) => s.state === 'pending');
   const failing = runs.some((r) => FAILED_CONCLUSIONS.has(r.conclusion)) || statuses.some((s) => s.state === 'failure' || s.state === 'error');
   if (pending) reasons.push('checks pending');
@@ -102,22 +120,26 @@ async function classifyPullRequest(repo, pr) {
   else if (detail.mergeable === null || detail.mergeable_state === 'unknown') reasons.push('mergeability not yet computed');
   else if (detail.mergeable_state === 'blocked') reasons.push('blocked by branch rules');
   else if (detail.mergeable_state === 'behind') reasons.push('behind the base branch');
-  else if (!['clean', 'unstable', 'has_hooks'].includes(detail.mergeable_state)) reasons.push(`merge state ${detail.mergeable_state}`);
+  else if (detail.mergeable_state === 'unstable') { if (!failing) reasons.push('checks failing'); }
+  else if (detail.mergeable_state !== 'clean') reasons.push(`merge state ${detail.mergeable_state}`);
 
-  const codexRecorded = /codex review/i.test(detail.body || '');
+  const codexRecorded = REVIEW_RECORDED.test(detail.body || '');
 
+  // Waiting rules come first: a pull request that is not mergeable yet is the steward's
+  // to fix whatever its review state. Only a mergeable pull request without a recorded
+  // completed review needs a human.
   let category;
-  if (!codexRecorded) category = 'intervention';
-  else if (reasons.length === 0) category = 'ready';
-  else category = 'waiting';
+  if (reasons.length > 0) category = 'waiting';
+  else if (!codexRecorded) category = 'intervention';
+  else category = 'ready';
 
   const name = `${repo}#${pr.number}`;
-  const note = category === 'intervention'
-    ? `Codex review not recorded in the description${reasons.length ? `; ${reasons.join(', ')}` : ''}`
-    : category === 'ready' ? `${checkSummary}, head ${short(sha)}` : reasons.join(', ');
+  const note = category === 'waiting'
+    ? reasons.join(', ')
+    : `${checkSummary}, head ${short(sha)}${codexRecorded ? '' : '; completed Codex review not recorded in the description'}`;
   return {
     category,
-    key: `${category}:pr:${detail.html_url}@${sha}`,
+    key: `pr:${detail.html_url}@${sha}:${codexRecorded ? 'reviewed' : 'unreviewed'}`,
     line: `[${name}](${detail.html_url}) ${detail.title.trim()} (${note})`,
   };
 }
@@ -131,7 +153,7 @@ function classifyIssue(issue) {
   if (!category) return null;
   return {
     category,
-    key: `${category}:issue:${issue.html_url}:${status}`,
+    key: `issue:${issue.html_url}:${status}`,
     line: `[#${issue.number}](${issue.html_url}) ${issue.title.trim()} (\`${status}\`)`,
   };
 }
@@ -168,10 +190,9 @@ function renderSection(title, hint, list, newKeys) {
   return lines.join('\n');
 }
 
-function renderBody(items, actionKeys, checkedAt) {
-  const state = JSON.stringify(actionKeys);
+function renderBody(items, notifiedKeys, checkedAt) {
   const parts = [
-    `<!-- ${STATE_MARK} ${state} -->`,
+    `<!-- ${STATE_MARK} ${JSON.stringify(notifiedKeys)} -->`,
     'Maintained automatically by the `owner-approvals` workflow from the current state of the four ecosystem repositories; edits here are overwritten. A comment is posted only when a new action item appears. How it works: [governance/owner-notifications.md](https://github.com/kwd-it/contextual-stewardship/blob/main/governance/owner-notifications.md).',
     '',
     `Last checked: ${checkedAt}.`,
@@ -187,6 +208,7 @@ function renderBody(items, actionKeys, checkedAt) {
 function renderComment(items, newKeys) {
   const total = items.ready.length + items.decision.length + items.intervention.length;
   const parts = [
+    `<!-- ${STATE_MARK} ${JSON.stringify([...newKeys].sort())} -->`,
     `@${OWNER_LOGIN} ${newKeys.size} new item${newKeys.size === 1 ? '' : 's'} need${newKeys.size === 1 ? 's' : ''} your decision (${total} outstanding in total).`,
     '',
   ];
@@ -194,10 +216,20 @@ function renderComment(items, newKeys) {
   return parts.join('\n').trimEnd();
 }
 
-function previousKeys(body) {
-  const m = (body || '').match(new RegExp(`<!-- ${STATE_MARK} (\\[.*?\\]) -->`, 's'));
-  if (!m) return null;
-  try { return JSON.parse(m[1]); } catch { return null; }
+function markedKeys(text) {
+  const m = (text || '').match(new RegExp(`<!-- ${STATE_MARK} (\\[.*?\\]) -->`, 's'));
+  if (!m) return [];
+  try { return JSON.parse(m[1]); } catch { return []; }
+}
+
+// Everything notified so far: the set stored in the issue body plus the set marked in
+// every notification comment. A failed body update after a posted comment therefore
+// never causes a second notification, and a failed comment never suppresses one.
+async function notifiedSoFar(issue) {
+  const keys = new Set(markedKeys(issue.body));
+  const comments = await list(`/repos/${SUMMARY_REPO}/issues/${issue.number}/comments`);
+  for (const c of comments) if (c.user?.login === BOT_LOGIN) for (const k of markedKeys(c.body)) keys.add(k);
+  return keys;
 }
 
 async function ensureLabel() {
@@ -216,18 +248,21 @@ async function main() {
   if (!TOKEN && !DRY_RUN) throw new Error('GITHUB_TOKEN is required');
   const items = await gather();
   const actionKeys = [...items.ready, ...items.decision, ...items.intervention].map((i) => i.key).sort();
+  const openKeys = new Set([...actionKeys, ...items.waiting.map((i) => i.key)]);
   const checkedAt = new Date().toISOString().replace('T', ' ').replace(/\.\d+Z$/, ' UTC');
-  const body = renderBody(items, actionKeys, checkedAt);
 
-  const existing = DRY_RUN && !TOKEN ? null : await findSummaryIssue();
-  const prior = existing ? previousKeys(existing.body) : null;
-  const priorSet = new Set(prior ?? []);
+  const existing = await findSummaryIssue();
+  const priorSet = existing ? await notifiedSoFar(existing) : new Set();
   const newKeys = new Set(actionKeys.filter((k) => !priorSet.has(k)));
+  // Keys stay remembered while their item is still open in any state, so an item that
+  // leaves the action set temporarily (a CI re-run, say) is not notified twice.
+  const notifiedKeys = [...new Set([...priorSet, ...newKeys])].filter((k) => openKeys.has(k)).sort();
+  const body = renderBody(items, notifiedKeys, checkedAt);
   const comment = newKeys.size > 0 ? renderComment(items, newKeys) : null;
 
   const fingerprint = createHash('sha256').update(JSON.stringify(actionKeys)).digest('hex').slice(0, 12);
   console.log(`Action items: ${actionKeys.length} (ready ${items.ready.length}, decision ${items.decision.length}, intervention ${items.intervention.length}; waiting ${items.waiting.length}); fingerprint ${fingerprint}`);
-  console.log(existing ? `Summary issue: #${existing.number} (${prior ? prior.length : 'no'} previously notified items)` : 'Summary issue: none yet');
+  console.log(existing ? `Summary issue: #${existing.number} (${priorSet.size} previously notified items)` : 'Summary issue: none yet');
   console.log(comment ? `Notification: ${newKeys.size} new item(s)` : 'Notification: none (no new action items)');
 
   if (DRY_RUN) {
@@ -240,16 +275,20 @@ async function main() {
   let issueNumber;
   if (existing) {
     issueNumber = existing.number;
-    if (existing.body !== body) await api(`/repos/${SUMMARY_REPO}/issues/${issueNumber}`, { method: 'PATCH', body: { body } });
   } else {
-    const { data } = await api(`/repos/${SUMMARY_REPO}/issues`, { method: 'POST', body: { title: SUMMARY_TITLE, body, labels: [SUMMARY_LABEL] } });
+    // Created with an empty notified set so that, if the comment below fails, the next
+    // run still notifies.
+    const { data } = await api(`/repos/${SUMMARY_REPO}/issues`, { method: 'POST', body: { title: SUMMARY_TITLE, body: renderBody(items, [], checkedAt), labels: [SUMMARY_LABEL] } });
     issueNumber = data.number;
     console.log(`Created summary issue #${issueNumber}`);
   }
+  // Comment first, then record the state: see notifiedSoFar for why either order of
+  // failure is safe.
   if (comment) {
     const { data } = await api(`/repos/${SUMMARY_REPO}/issues/${issueNumber}/comments`, { method: 'POST', body: { body: comment } });
     console.log(`Posted notification: ${data.html_url}`);
   }
+  if (!existing || existing.body !== body) await api(`/repos/${SUMMARY_REPO}/issues/${issueNumber}`, { method: 'PATCH', body: { body } });
 }
 
 main().catch((err) => {
