@@ -165,6 +165,7 @@ test('the CLI reads the reviewed head from the description when --reviewed is om
   assert.deepEqual(parseArgs(['kwd-it/contextualwp', '4', '--dry-run']), { repo: 'kwd-it/contextualwp', number: 4, dryRun: true, reviewed: undefined });
   assert.deepEqual(parseArgs(['kwd-it/contextualwp', '4', '--reviewed', '0e625c1']), { repo: 'kwd-it/contextualwp', number: 4, dryRun: false, reviewed: '0e625c1' });
   assert.deepEqual(parseArgs(['--reviewed', 'a65c96f', 'kwd-it/contextualwp', '2']).repo, 'kwd-it/contextualwp');
+  assert.deepEqual(parseArgs(['kwd-it/contextualwp', '2', '--via-gh', '--dry-run']), { repo: 'kwd-it/contextualwp', number: 2, dryRun: true, reviewed: undefined });
 });
 
 test('missing diff content and non-file Git objects fail closed', () => {

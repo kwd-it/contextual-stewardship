@@ -14,16 +14,22 @@
 //                      a prefix of at least 7 characters); may be omitted when the pull
 //                      request description carries a "Reviewed head: <sha>" line
 //   --dry-run          evaluate and report, merge nothing
+//   --via-gh           send every request through the authenticated `gh api` command
+//                      (the default when GITHUB_TOKEN is absent); `gh` honours the
+//                      HTTPS proxy of environments such as the Routine's, which Node's
+//                      fetch does not
 //
 // Exit codes: 0 merged (or already merged); 2 not eligible (reasons printed);
 //             1 error.
 //
-// Environment: GITHUB_TOKEN (required unless --dry-run).
+// Environment: GITHUB_TOKEN, or an authenticated `gh`.
 
 import { pathToFileURL } from 'node:url';
+import { spawnSync } from 'node:child_process';
 
 const API = 'https://api.github.com';
 const TOKEN = process.env.GITHUB_TOKEN || '';
+const VIA_GH = process.argv.includes('--via-gh') || !TOKEN;
 
 // Repositories where merging the default branch cannot trigger a production
 // deployment, verified as recorded in governance/authority-model.md. The merge method
@@ -225,7 +231,27 @@ export function parseArgs(argv) {
   return { repo, number: Number(numberArg), dryRun, reviewed };
 }
 
+// One REST call through `gh api --include`, parsed into the same shape as the fetch
+// transport. `gh` exits 1 on an HTTP error but still prints the response.
+function ghApi(path, method, body) {
+  const args = ['api', '--include', '-X', method, '-H', 'X-GitHub-Api-Version: 2022-11-28', path.replace(/^\//, '')];
+  if (body !== undefined) args.push('--input', '-');
+  const r = spawnSync(process.platform === 'win32' ? 'gh.exe' : 'gh', args, { input: body === undefined ? undefined : JSON.stringify(body), encoding: 'utf8', maxBuffer: 64 * 1024 * 1024 });
+  if (r.error) throw new Error(`gh api failed to start: ${r.error.message}`);
+  const out = r.stdout || '';
+  const sep = out.includes('\r\n\r\n') ? '\r\n\r\n' : '\n\n';
+  const idx = out.indexOf(sep);
+  const head = idx >= 0 ? out.slice(0, idx) : out;
+  const text = idx >= 0 ? out.slice(idx + sep.length) : '';
+  const status = Number((head.match(/^HTTP\/[\d.]+\s+(\d{3})/m) || [])[1]);
+  if (!status) throw new Error(`gh api ${method} ${path}: no HTTP status in the response (${(r.stderr || '').trim().slice(0, 200)})`);
+  let data = null;
+  try { data = text.trim() ? JSON.parse(text) : null; } catch { data = text; }
+  return { status, ok: status >= 200 && status < 300, data };
+}
+
 async function api(path, { method = 'GET', body } = {}) {
+  if (VIA_GH) return ghApi(path, method, body);
   const headers = { Accept: 'application/vnd.github+json', 'X-GitHub-Api-Version': '2022-11-28', 'User-Agent': 'contextual-stewardship-autonomous-merge' };
   if (TOKEN) headers.Authorization = `Bearer ${TOKEN}`;
   if (body !== undefined) headers['Content-Type'] = 'application/json';
@@ -279,7 +305,10 @@ async function fetchTree(repo, sha, prefix) {
 async function main(argv) {
   const { repo, number, dryRun, reviewed: reviewedArg } = parseArgs(argv);
   if (!repo || !Number.isInteger(number)) throw new Error('usage: autonomous-merge.mjs <owner/repo> <number> --reviewed <sha> [--dry-run]');
-  if (!TOKEN && !dryRun) throw new Error('GITHUB_TOKEN is required');
+  if (VIA_GH) {
+    const auth = spawnSync(process.platform === 'win32' ? 'gh.exe' : 'gh', ['auth', 'status'], { encoding: 'utf8' });
+    if (auth.status !== 0) throw new Error('GITHUB_TOKEN is absent and gh is not authenticated');
+  }
 
   const pr = await fetchPullRequest(repo, number);
   if (pr.merged) { console.log(`${repo}#${number} is already merged (${pr.merge_commit_sha?.slice(0, 7)}); nothing to do`); return 0; }

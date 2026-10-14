@@ -49,7 +49,7 @@ For a pull request the Routine judges eligible under "Autonomous merge of docume
 
 1. writes in the description, in addition to the review record, `Reviewed head: <full sha>`, `Merge: automatic under D-016 once checks pass.` and `Owner summary: <one plain sentence>` (see `owner-notifications.md`);
 2. waits for the head's checks to complete, polling for up to fifteen minutes;
-3. runs `node /home/user/contextual-stewardship/tooling/merge/autonomous-merge.mjs <owner/repo> <number> --reviewed <sha>` from this repository and accepts the result: exit 0 merged (the tool leaves the audit comment), exit 2 not eligible (reasons printed; the run does not argue with the tool);
+3. runs `node /home/user/contextual-stewardship/tooling/merge/autonomous-merge.mjs <owner/repo> <number> --reviewed <sha> --via-gh` from this repository (`--via-gh` sends the requests through the authenticated `gh` command, which honours the environment's proxy) and accepts the result: exit 0 merged (the tool leaves the audit comment), exit 2 not eligible (reasons printed; the run does not argue with the tool);
 4. on exit 2, or when the merge call is refused, edits the `Merge:` line to `Merge: owner (automatic merge not possible: <reason>).` so the owner is notified, and reports it in the handback.
 
 At the start of a cycle the run also re-evaluates its own earlier open pull requests whose description carries `Merge: automatic` and a `Reviewed head:` line, and runs the tool on each; a head that no longer matches the reviewed commit is ineligible and is handed to the owner the same way. Each pull request is processed once per run; a pull request that is already merged is skipped. Merged branches are retained (`development-workflow.md`).
