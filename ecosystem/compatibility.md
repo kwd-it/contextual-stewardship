@@ -8,7 +8,7 @@ Verified against the repositories on 2026-10-10. Update this file in the same cy
 |---|---|---|---|
 | Housebuilder Pack 0.4.8 | ContextualWP core >= 1.3.3 | `CONTEXTUALWP_HOUSEBUILDER_PACK_MIN_CONTEXTUALWP_VERSION`, `requires_contextualwp` in registration, README | Pack checks `CONTEXTUALWP_VERSION` and shows an admin notice; core marks the pack "Incompatible" in admin. Neither blocks activation. If `CONTEXTUALWP_VERSION` is undefined the Pack treats core as compatible. |
 | Housebuilder Pack 0.4.8 | WordPress >= 6.4, PHP >= 8.1 in 0.4.8; PHP >= 8.3 on `main` since [pull request #1](https://github.com/kwd-it/contextualwp-housebuilder-pack/pull/1) merged on 2026-10-10 (D-009), not yet released; tested up to WordPress 6.8 | Plugin header, `composer.json` | WordPress enforces the header minimums. No `Requires Plugins` header. |
-| ContextualWP 1.3.6 | PHP >= 8.3 since 1.3.6 (released 2026-10-10, D-009); 1.3.5 and earlier declared PHP >= 8.1 | `composer.json` and the `Requires PHP: 8.3` plugin header | WordPress enforces `Requires PHP`, so it does not offer 1.3.6 to sites on older PHP. **No WordPress minimum is declared anywhere.** |
+| ContextualWP 1.3.7 (released 2026-10-14, tag `v1.3.7` at b323a35; verified on GitHub 2026-10-14) | PHP >= 8.3 since 1.3.6 (released 2026-10-10, D-009); 1.3.5 and earlier declared PHP >= 8.1 | `composer.json` and the `Requires PHP: 8.3` plugin header | WordPress enforces `Requires PHP`, so it does not offer 1.3.6 or later to sites on older PHP. **No WordPress minimum is declared anywhere.** |
 | Contextual Console 1.2.1 | Housebuilder Pack >= 0.4.6 for asset-completeness fields | README, `CHANGELOG.md`, handover doc | **Not enforced in code.** Missing fields are treated as `unknown` and are non-actionable. No ContextualWP core requirement is stated. |
 | Contextual Console 1.2.1 | PHP ^8.3, Laravel ^13.0 (lock: 13.4.0) | `composer.json` | Composer. In 1.2.1 the committed `composer.lock` resolves Symfony 8.0 packages that require PHP >= 8.4, so the declared and effective minimums differ. Fixed on `master` by [pull request #2](https://github.com/kwd-it/contextual-console/pull/2), merged on 2026-10-10 and not yet released: the lock resolves Symfony 7.4 LTS and `config.platform.php` pins resolution to 8.3.0, keeping PHP 8.3 as the minimum (owner decision, 2026-10-10). The suite passes under PHP 8.3.13 and 8.4.20 (verified 2026-10-10 by running it). |
 
@@ -50,7 +50,7 @@ Compatibility risk: the status vocabulary and the completeness enum are defined 
 
 The Console can also ingest core's `GET /wp-json/mcp/v1/list_contexts` through its `contextualwp_list_contexts` adapter (maps `post_id`/`ID`/`context_id` to `id`, `acf.price` to `price`, `plot_status`/`availability` to `status`), with `http_json_items_key` to unwrap a wrapped list and `page`/`per_page` pagination. This path is documented but the primary production path is Interface 2.
 
-Core routes and permissions as of 1.3.6 (unchanged since 1.3.5):
+Core routes and permissions as of 1.3.7 (unchanged since 1.3.5):
 
 | Route | Method | Permission |
 |---|---|---|
