@@ -149,12 +149,16 @@ test('unchanged headings, moved text and horizontal rules do not count as headin
   assert.equal(evaluate(input({ files: [file('CHANGELOG.md', '+- item\n+---\n+\n+---')] })).eligible, true);
   assert.deepEqual(changedHeadings(['Unreleased', '---'], ['1.4.0', '---']), ['1.4.0', 'Unreleased']);
   assert.deepEqual(changedHeadings(['## A', '## B'], ['## B', '## A']), []);
+  // a level change alone is a heading change
+  assert.deepEqual(changedHeadings(['## [1.4.0]'], ['### [1.4.0]']), ['[1.4.0]', '[1.4.0]']);
+  assert.equal(evaluate(input({ files: [file('CHANGELOG.md', '-## [1.4.0]\n+### [1.4.0]')] })).eligible, false);
+  assert.equal(evaluate(input({ files: [file('CHANGELOG.md', '-## Unreleased\n+### Unreleased')] })).eligible, true);
   assert.deepEqual(hunkViews('@@ -1,2 +1,2 @@\n-old\n+new\n ctx\n\\ No newline at end of file'), { before: ['', 'old', 'ctx'], after: ['', 'new', 'ctx'] });
 });
 
 test('Setext and ATX headings are both recognised', () => {
-  assert.deepEqual(headingsIn(['## Unreleased', 'Release 1.4.0', '---', '- a list item', '---', 'text']), ['Unreleased', 'Release 1.4.0']);
-  assert.deepEqual(headingsIn(['Title', '===', '', '### Fixed ###']), ['Title', 'Fixed']);
+  assert.deepEqual(headingsIn(['## Unreleased', 'Release 1.4.0', '---', '- a list item', '---', 'text']), ['2:Unreleased', '2:Release 1.4.0']);
+  assert.deepEqual(headingsIn(['Title', '===', '', '### Fixed ###']), ['1:Title', '3:Fixed']);
 });
 
 test('the CLI reads the reviewed head from the description when --reviewed is omitted', () => {

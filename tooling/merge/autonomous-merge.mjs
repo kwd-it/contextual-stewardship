@@ -89,9 +89,9 @@ export function hunkViews(patch) {
   return { before, after };
 }
 
-// Headings that differ between two views, as a multiset difference, so a heading
-// whose text changed above an unchanged Setext underline, or whose underline was
-// removed, is reported.
+// Headings that differ between two views, as a multiset difference over level and
+// text, so a heading whose text changed above an unchanged Setext underline, whose
+// underline was removed, or whose level changed is reported. Returns the texts.
 export function changedHeadings(beforeLines, afterLines) {
   const count = (list) => list.reduce((m, h) => m.set(h, (m.get(h) || 0) + 1), new Map());
   const b = count(headingsIn(beforeLines));
@@ -99,17 +99,18 @@ export function changedHeadings(beforeLines, afterLines) {
   const changed = [];
   for (const [h, n] of a) if (n > (b.get(h) || 0)) changed.push(h);
   for (const [h, n] of b) if (n > (a.get(h) || 0)) changed.push(h);
-  return changed;
+  return changed.map((h) => h.replace(/^\d+:/, ''));
 }
 
-// Headings in a list of lines: ATX ("## Title") and Setext ("Title" underlined by
-// === or ---).
+// Headings in a list of lines as "<level>:<text>": ATX ("## Title") and Setext
+// ("Title" underlined by === for level 1 or --- for level 2).
 export function headingsIn(lines) {
   const out = [];
   for (let i = 0; i < lines.length; i += 1) {
-    const atx = lines[i].match(/^\s{0,3}#{1,6}\s+(.*?)\s*#*\s*$/);
-    if (atx) { out.push(atx[1]); continue; }
-    if (i > 0 && /^\s{0,3}(=+|-+)\s*$/.test(lines[i]) && lines[i - 1].trim() !== '' && !/^\s{0,3}[-*+]\s/.test(lines[i - 1]) && !/^\s{0,3}#{1,6}\s/.test(lines[i - 1])) out.push(lines[i - 1].trim());
+    const atx = lines[i].match(/^\s{0,3}(#{1,6})\s+(.*?)\s*#*\s*$/);
+    if (atx) { out.push(`${atx[1].length}:${atx[2]}`); continue; }
+    const underline = lines[i].match(/^\s{0,3}(=+|-+)\s*$/);
+    if (underline && i > 0 && lines[i - 1].trim() !== '' && !/^\s{0,3}[-*+]\s/.test(lines[i - 1]) && !/^\s{0,3}#{1,6}\s/.test(lines[i - 1])) out.push(`${underline[1][0] === '=' ? 1 : 2}:${lines[i - 1].trim()}`);
   }
   return out;
 }
