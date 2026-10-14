@@ -4,7 +4,7 @@ Verified against the repositories on 2026-10-10. Anything marked *assumption* wa
 
 ## Roles
 
-**ContextualWP** (WordPress plugin, PHP, v1.3.6) is the foundation. It exposes a site's structure and content as machine-readable context: an MCP-style manifest, paginated context listing and retrieval, a schema endpoint with an interpretation layer, and editor-safe ACF field metadata. It also hosts the sector pack registry that lets other plugins extend that context without forking core. Its AI-assisted admin tools (provider settings, `/generate_context`, global chat, ACF AskAI) are optional and secondary; they are the only place in the ecosystem that calls AI providers.
+**ContextualWP** (WordPress plugin, PHP, v1.3.7) is the foundation. It exposes a site's structure and content as machine-readable context: an MCP-style manifest, paginated context listing and retrieval, a schema endpoint with an interpretation layer, and editor-safe ACF field metadata. It also hosts the sector pack registry that lets other plugins extend that context without forking core. Its AI-assisted admin tools (provider settings, `/generate_context`, global chat, ACF AskAI) are optional and secondary; they are the only place in the ecosystem that calls AI providers.
 
 **ContextualWP Housebuilder Pack** (WordPress plugin, PHP, v0.4.8) is the first sector pack and the public reference for how packs work. It registers with core, infers housebuilder structure (developments, plots, house types) from a site's existing post types and taxonomies without registering any of its own, adds relationship hints and interpretation blocks to core's endpoints, and serves a single authenticated plots feed with asset-completeness signals.
 
@@ -38,7 +38,7 @@ One UK housebuilder website runs all three in production. It is the source of mo
 | Branch prefixes | `docs/ feat/ fix/ refactor/ test/ chore/` | Conventional (`feat/ fix/ chore/`) | `feature/ fix/ chore/` |
 | Release | `chore(release): prepare vX.Y.Z` commit on branch, merge, tag on `main` | same pattern, linear history | separate release commit, tag; version in `CHANGELOG.md` only |
 | Tests | PHPUnit 10, stub bootstrap | PHPUnit 10.5, stub bootstrap | Pest 4, SQLite in memory, `composer test` |
-| CI | none | none | none |
+| CI | GitHub Actions PHPUnit on PHP 8.3 and 8.4 (`.github/workflows/tests.yml`, since [pull request #4](https://github.com/kwd-it/contextualwp/pull/4) merged 2026-10-14; verified on GitHub 2026-10-14) | none | none |
 | Licence | GPL-3.0-only (`LICENSE` authoritative; `composer.json` corrected from MIT in pull request #1; D-008) | GPL-2.0-or-later throughout | MIT throughout |
 | Steward may merge to default branch | not granted (D-006) | not granted (D-006) | not granted (D-006); committing and pushing to a task branch is authorised by its `CLAUDE.md` |
 
