@@ -3,7 +3,7 @@
 
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { evaluate, checkFile } from './autonomous-merge.mjs';
+import { evaluate, checkFile, headingsIn, parseArgs } from './autonomous-merge.mjs';
 
 const SHA = 'a65c96f825aedb7e6c250cd30927d811c686b801';
 
@@ -24,8 +24,15 @@ function file(filename, patch, extra = {}) {
   return { filename, status: 'modified', additions: added, deletions: removed, patch, ...extra };
 }
 
-// Ordinary files unless a test says otherwise.
-const typesOf = (files, override = {}) => Object.fromEntries(files.filter((f) => f.status !== 'removed').map((f) => [f.filename, override[f.filename] || 'file']));
+// Ordinary, non-empty files at head and base unless a test says otherwise.
+function objectsOf(files, override = {}) {
+  const objects = {};
+  for (const f of files) {
+    if (f.status !== 'removed') objects[`head:${f.filename}`] = { type: 'file', size: 10 };
+    if (f.status !== 'added') objects[`base:${f.previous_filename || f.filename}`] = { type: 'file', size: 10 };
+  }
+  return { ...objects, ...override };
+}
 
 const fixtureTest = file('tests/ExampleTest.php',
   "-\t\t$this->seed('Old Name');\n+\t\t$this->seed('Example Homes');\n-\t\t$this->assertSame('Old Name', $x);\n+\t\t$this->assertSame('Example Homes', $x);");
@@ -33,7 +40,7 @@ const changelog = file('CHANGELOG.md', '+- Neutralised two fixture titles. Asser
 
 function input(overrides = {}) {
   const files = overrides.files || [fixtureTest, changelog];
-  return { repo: 'kwd-it/contextualwp-housebuilder-pack', pr: pr(), files, types: typesOf(files), reviews: [], checkRuns: [], statuses: [], reviewedSha: 'a65c96f', ...overrides };
+  return { repo: 'kwd-it/contextualwp-housebuilder-pack', pr: pr(), files, objects: objectsOf(files), reviews: [], checkRuns: [], statuses: [], reviewedSha: 'a65c96f', ...overrides };
 }
 
 function consoleInput(files) {
@@ -56,7 +63,7 @@ test('documentation-only change qualifies, including docs/ and README', () => {
 test('Unreleased and Keep a Changelog category headings are fine; any other heading change is not', () => {
   assert.equal(evaluate(input({ files: [file('CHANGELOG.md', '+## [Unreleased]\n+- note')] })).eligible, true);
   assert.equal(evaluate(input({ files: [file('docs/CHANGELOG.md', '+### Changed\n+- note\n+### Fixed\n+- fix')] })).eligible, true);
-  for (const patch of ['+## [1.4.0] - 2026-10-14', '+## Release 1.2.3', '+## v0.4.9', '-## Unreleased\n+## 0.4.9', '+### Notes', '+## 2026-10-14']) {
+  for (const patch of ['+## [1.4.0] - 2026-10-14', '+## Release 1.2.3', '+## v0.4.9', '-## Unreleased\n+## 0.4.9', '+### Notes', '+## 2026-10-14', '+1.4.0 - 2026-10-14\n+---', '+Release 1.4.0\n+=====']) {
     const r = evaluate(input({ files: [file('CHANGELOG.md', patch)] }));
     assert.equal(r.eligible, false, patch);
     assert.match(r.reasons.join(), /changes a heading other than Unreleased or a Keep a Changelog category/);
@@ -127,18 +134,47 @@ test('renames are judged on both paths and may not move tests out of tests/', ()
   assert.match(evaluate(input({ files: [testToDocs] })).reasons.join(), /moved out of tests\//);
   const instructionToDocs = file('docs/notes.md', '', { status: 'renamed', previous_filename: 'CLAUDE.md', additions: 0, deletions: 0 });
   assert.match(evaluate(input({ files: [instructionToDocs] })).reasons.join(), /renamed from CLAUDE\.md: not maintenance/);
-  assert.match(checkFile({ filename: 'docs/old.md', previous_filename: 'CLAUDE.md', status: 'renamed', patch: '' }, { 'docs/old.md': 'file' }).join(), /denied path/);
+  assert.match(checkFile({ filename: 'docs/old.md', previous_filename: 'CLAUDE.md', status: 'renamed', patch: '' }, {}).join(), /denied path/);
+  const renamedChangelog = file('docs/history.md', '-## Unreleased\n+## 1.4.0', { status: 'renamed', previous_filename: 'CHANGELOG.md' });
+  const r = evaluate(input({ files: [renamedChangelog] }));
+  assert.match(r.reasons.join(), /changes a heading other than Unreleased/);
+  assert.match(r.reasons.join(), /renames a changelog/);
+});
+
+test('Setext and ATX headings are both recognised', () => {
+  assert.deepEqual(headingsIn(['## Unreleased', 'Release 1.4.0', '---', '- a list item', '---', 'text']), ['Unreleased', 'Release 1.4.0']);
+  assert.deepEqual(headingsIn(['Title', '===', '', '### Fixed ###']), ['Title', 'Fixed']);
+});
+
+test('the CLI reads the reviewed head from the description when --reviewed is omitted', () => {
+  assert.deepEqual(parseArgs(['kwd-it/contextualwp', '4', '--dry-run']), { repo: 'kwd-it/contextualwp', number: 4, dryRun: true, reviewed: undefined });
+  assert.deepEqual(parseArgs(['kwd-it/contextualwp', '4', '--reviewed', '0e625c1']), { repo: 'kwd-it/contextualwp', number: 4, dryRun: false, reviewed: '0e625c1' });
+  assert.deepEqual(parseArgs(['--reviewed', 'a65c96f', 'kwd-it/contextualwp', '2']).repo, 'kwd-it/contextualwp');
 });
 
 test('missing diff content and non-file Git objects fail closed', () => {
   const noPatch = { filename: 'tests/ExampleTest.php', status: 'modified', additions: 0, deletions: 20 };
-  assert.match(evaluate(input({ files: [noPatch], types: { 'tests/ExampleTest.php': 'file' } })).reasons.join(), /no diff content available/);
+  assert.match(evaluate(input({ files: [noPatch] })).reasons.join(), /no diff content available/);
   const files = [fixtureTest, changelog];
-  assert.match(evaluate(input({ files, types: typesOf(files, { 'tests/ExampleTest.php': 'submodule' }) })).reasons.join(), /is a submodule/);
-  assert.match(evaluate(input({ files, types: typesOf(files, { 'CHANGELOG.md': 'symlink' }) })).reasons.join(), /is a symlink/);
-  assert.match(evaluate(input({ files, types: {} })).reasons.join(), /file type unknown/);
+  assert.match(evaluate(input({ files, objects: objectsOf(files, { 'head:tests/ExampleTest.php': { type: 'submodule' } }) })).reasons.join(), /is a submodule/);
+  assert.match(evaluate(input({ files, objects: objectsOf(files, { 'head:CHANGELOG.md': { type: 'symlink' } }) })).reasons.join(), /is a symlink/);
+  assert.match(evaluate(input({ files, objects: objectsOf(files, { 'head:CHANGELOG.md': { type: 'executable', size: 5 } }) })).reasons.join(), /is an executable/);
+  assert.match(evaluate(input({ files, objects: {} })).reasons.join(), /object type unknown at head/);
+  assert.match(evaluate(input({ files, treesComplete: false })).reasons.join(), /truncated/);
+  // removals need evidence too: the removed object must have been an ordinary file with a diff
   const removedWithPatch = file('docs/obsolete.md', '-gone', { status: 'removed' });
-  assert.equal(evaluate(input({ files: [removedWithPatch], types: {} })).eligible, true);
+  assert.equal(evaluate(input({ files: [removedWithPatch] })).eligible, true);
+  const removedBinary = { filename: 'docs/old.png', status: 'removed', additions: 0, deletions: 0 };
+  assert.match(evaluate(input({ files: [removedBinary], objects: { 'base:docs/old.png': { type: 'file', size: 2048 } } })).reasons.join(), /no diff content available/);
+  const removedSymlinkMd = { filename: 'docs/link.md', status: 'removed', additions: 0, deletions: 1, patch: '-../README.md' };
+  assert.match(evaluate(input({ files: [removedSymlinkMd], objects: { 'base:docs/link.md': { type: 'symlink', size: 12 } } })).reasons.join(), /is a symlink/);
+  const removedEmptyPatch = { filename: 'docs/old.md', status: 'removed', additions: 0, deletions: 3, patch: '' };
+  assert.match(evaluate(input({ files: [removedEmptyPatch], objects: { 'base:docs/old.md': { type: 'file', size: 30 } } })).reasons.join(), /no diff content available/);
+  // the one accepted exception: an empty text file, established from the tree
+  const emptyAdded = { filename: 'docs/empty.md', status: 'added', additions: 0, deletions: 0 };
+  assert.equal(evaluate(input({ files: [emptyAdded], objects: { 'head:docs/empty.md': { type: 'file', size: 0 } } })).eligible, true);
+  const emptyRemoved = { filename: 'docs/empty.md', status: 'removed', additions: 0, deletions: 0 };
+  assert.equal(evaluate(input({ files: [emptyRemoved], objects: { 'base:docs/empty.md': { type: 'file', size: 0 } } })).eligible, true);
 });
 
 test('unreviewed, changed-head, draft, conflicting or closed pull requests cannot qualify', () => {

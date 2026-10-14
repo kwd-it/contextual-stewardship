@@ -62,7 +62,8 @@ const WEAKENING = /(markTestSkipped|markTestIncomplete|->skip\(|->todo\(|->only\
 // Headings a maintenance change may add to or remove from a changelog: "Unreleased"
 // and the Keep a Changelog category headings. Anything else (a version, a date, a
 // restructuring) is a release or an editorial decision and is left to the owner.
-const PERMITTED_CHANGELOG_HEADING = /^#{1,6}\s*(\[?unreleased\]?|added|changed|deprecated|removed|fixed|security)\s*$/i;
+const PERMITTED_CHANGELOG_HEADING = /^(\[?unreleased\]?|added|changed|deprecated|removed|fixed|security)\s*$/i;
+const CHANGELOG = /(^|\/)(changelog|changes|history|releases?)\.md$/i;
 
 function pathReasons(path) {
   if (DENY.some((re) => re.test(path))) return [`${path}: not maintenance (denied path)`];
@@ -70,28 +71,51 @@ function pathReasons(path) {
   return [];
 }
 
-// `types` maps each non-removed path to its Git object type as GitHub reports it
-// ('file', 'symlink', 'submodule', 'dir'); anything but 'file' is ineligible, and a
-// path with no recorded type is treated as unknown.
-export function checkFile(file, types = {}) {
+// Headings in a set of diff lines (without their +/- prefix): ATX ("## Title") and
+// Setext ("Title" underlined by === or ---).
+export function headingsIn(lines) {
+  const out = [];
+  for (let i = 0; i < lines.length; i += 1) {
+    const atx = lines[i].match(/^\s{0,3}#{1,6}\s+(.*?)\s*#*\s*$/);
+    if (atx) { out.push(atx[1]); continue; }
+    if (i > 0 && /^\s{0,3}(=+|-+)\s*$/.test(lines[i]) && lines[i - 1].trim() !== '' && !/^\s{0,3}[-*+]\s/.test(lines[i - 1]) && !/^\s{0,3}#{1,6}\s/.test(lines[i - 1])) out.push(lines[i - 1].trim());
+  }
+  return out;
+}
+
+// `objects` maps paths to {type, size} from the Git trees of the head commit (for the
+// path as it is after the change) and the base commit (for removed and renamed-from
+// paths). Types: 'file' (mode 100644), 'executable', 'symlink', 'submodule', 'tree'.
+export function checkFile(file, objects = {}) {
   const path = file.filename;
   const reasons = pathReasons(path);
-  if (file.previous_filename) {
-    reasons.push(...pathReasons(file.previous_filename).map((r) => `renamed from ${r}`));
-    if (/^tests\//.test(file.previous_filename) && !/^tests\//.test(path)) reasons.push(`${file.previous_filename}: moved out of tests/`);
+  const previous = file.previous_filename;
+  if (previous) {
+    reasons.push(...pathReasons(previous).map((r) => `renamed from ${r}`));
+    if (/^tests\//.test(previous) && !/^tests\//.test(path)) reasons.push(`${previous}: moved out of tests/`);
   }
   if (file.status === 'removed' && /^tests\//.test(path)) reasons.push(`${path}: test file removed`);
-  if (file.status !== 'removed') {
-    const type = types[path];
-    if (type !== 'file') reasons.push(`${path}: ${type ? `is a ${type}` : 'file type unknown'}, not an ordinary file`);
+
+  const headObject = file.status === 'removed' ? null : objects[`head:${path}`];
+  const baseObject = file.status === 'added' ? null : objects[`base:${previous || path}`];
+  for (const [label, object, needed] of [['head', headObject, file.status !== 'removed'], ['base', baseObject, file.status !== 'added']]) {
+    if (!needed) continue;
+    if (!object) reasons.push(`${label === 'head' ? path : previous || path}: object type unknown at ${label}`);
+    else if (object.type !== 'file') reasons.push(`${label === 'head' ? path : previous || path}: is ${object.type === 'executable' ? 'an executable' : `a ${object.type}`}, not an ordinary file`);
   }
-  const changes = (file.additions || 0) + (file.deletions || 0) + (file.changes || 0);
-  if (typeof file.patch !== 'string' || (file.patch === '' && file.status !== 'removed')) {
-    if (file.status !== 'removed' || changes > 0) reasons.push(`${path}: no diff content available`);
+
+  // Diff content is required. GitHub omits the patch for binary and oversized files;
+  // the only accepted exception is an empty text file, established from the tree.
+  const counted = (file.additions || 0) + (file.deletions || 0);
+  const hasPatch = typeof file.patch === 'string' && file.patch !== '';
+  if (!hasPatch) {
+    const relevant = file.status === 'removed' ? baseObject : headObject;
+    const emptyText = counted === 0 && relevant && relevant.type === 'file' && relevant.size === 0 && (file.status !== 'modified' || (baseObject?.size === 0 && headObject?.size === 0));
+    if (!emptyText) reasons.push(`${path}: no diff content available`);
   }
-  const patch = typeof file.patch === 'string' ? file.patch : '';
-  const added = patch.split('\n').filter((l) => l.startsWith('+') && !l.startsWith('+++'));
-  const removed = patch.split('\n').filter((l) => l.startsWith('-') && !l.startsWith('---'));
+  const patch = hasPatch ? file.patch : '';
+  const added = patch.split('\n').filter((l) => l.startsWith('+') && !l.startsWith('+++')).map((l) => l.slice(1));
+  const removed = patch.split('\n').filter((l) => l.startsWith('-') && !l.startsWith('---')).map((l) => l.slice(1));
   if (/^tests\//.test(path)) {
     if (added.some((l) => WEAKENING.test(l))) reasons.push(`${path}: adds a skip, todo or only marker`);
     const removedAssertions = removed.filter((l) => ASSERTION.test(l)).length;
@@ -101,19 +125,20 @@ export function checkFile(file, types = {}) {
     const addedTests = added.filter((l) => TEST_DECLARATION.test(l)).length;
     if (removedTests > addedTests) reasons.push(`${path}: removes tests (${removedTests} removed, ${addedTests} added)`);
   }
-  if (/changelog\.md$/i.test(path)) {
-    const headings = [...added, ...removed].map((l) => l.slice(1).trim()).filter((l) => /^#{1,6}\s/.test(l));
+  if (CHANGELOG.test(path) || (previous && CHANGELOG.test(previous))) {
+    const headings = [...headingsIn(added), ...headingsIn(removed)];
     if (headings.some((h) => !PERMITTED_CHANGELOG_HEADING.test(h))) reasons.push(`${path}: changes a heading other than Unreleased or a Keep a Changelog category`);
+    if (previous && previous !== path) reasons.push(`${path}: renames a changelog`);
   }
   return reasons;
 }
 
 // Pure evaluation. `input` carries everything read from GitHub:
-//   repo, pr (REST pull request object), files (REST files list), types (path -> Git
-//   object type at the head), reviews, checkRuns, statuses, reviewedSha (from
-//   --reviewed or the description).
+//   repo, pr (REST pull request object), files (REST files list), objects (see
+//   checkFile), reviews, checkRuns, statuses, reviewedSha (from --reviewed or the
+//   description), treesComplete (false when either tree listing was truncated).
 export function evaluate(input) {
-  const { repo, pr, files, types = {}, reviews = [], checkRuns = [], statuses = [], reviewedSha } = input;
+  const { repo, pr, files, objects = {}, reviews = [], checkRuns = [], statuses = [], reviewedSha, treesComplete = true } = input;
   const reasons = [];
   const policy = REPOSITORIES[repo];
 
@@ -146,15 +171,25 @@ export function evaluate(input) {
   const notSuccessful = [...checkRuns.filter((r) => r.status === 'completed' && r.conclusion !== 'success'), ...statuses.filter((s) => s.state !== 'pending' && s.state !== 'success')];
   if (notSuccessful.length > 0) reasons.push(`checks not all successful (${notSuccessful.map((c) => c.conclusion || c.state).join(', ')})`);
 
+  if (!treesComplete) reasons.push('repository tree listing was truncated; object types cannot be established');
   if (!Array.isArray(files) || files.length === 0) reasons.push('no files');
   else {
     if (files.length > LIMITS.files) reasons.push(`${files.length} files changed (limit ${LIMITS.files})`);
     const lines = files.reduce((n, f) => n + (f.additions || 0) + (f.deletions || 0), 0);
     if (lines > LIMITS.lines) reasons.push(`${lines} lines changed (limit ${LIMITS.lines})`);
-    for (const f of files) reasons.push(...checkFile(f, types));
+    for (const f of files) reasons.push(...checkFile(f, objects));
   }
 
   return { eligible: reasons.length === 0, reasons, mergeMethod: policy?.mergeMethod, headSha, checks: checkRuns.length + statuses.length };
+}
+
+export function parseArgs(argv) {
+  const dryRun = argv.includes('--dry-run');
+  const reviewedIndex = argv.indexOf('--reviewed');
+  const reviewed = reviewedIndex >= 0 ? argv[reviewedIndex + 1] : undefined;
+  const positional = argv.filter((a, i) => !a.startsWith('--') && !(reviewedIndex >= 0 && i === reviewedIndex + 1));
+  const [repo, numberArg] = positional;
+  return { repo, number: Number(numberArg), dryRun, reviewed };
 }
 
 async function api(path, { method = 'GET', body } = {}) {
@@ -196,24 +231,20 @@ async function fetchPullRequest(repo, number) {
   return pr;
 }
 
-// Git object type of each non-removed path at the head commit, from the contents API.
-async function fetchTypes(repo, files, sha) {
-  const types = {};
-  for (const f of files) {
-    if (f.status === 'removed') continue;
-    const { ok, data } = await api(`/repos/${repo}/contents/${f.filename.split('/').map(encodeURIComponent).join('/')}?ref=${sha}`);
-    if (ok && data && !Array.isArray(data) && typeof data.type === 'string') types[f.filename] = data.type;
-  }
-  return types;
+const MODES = { '100644': 'file', '100755': 'executable', '120000': 'symlink', '160000': 'submodule', '040000': 'tree' };
+
+// Object type and size of every path in a commit's tree, from the Git trees API,
+// which reports the Git mode (the contents API follows symlinks and cannot be used).
+async function fetchTree(repo, sha, prefix) {
+  const { ok, status, data } = await api(`/repos/${repo}/git/trees/${sha}?recursive=1`);
+  if (!ok) throw new Error(`GET tree ${sha.slice(0, 7)} -> HTTP ${status}`);
+  const objects = {};
+  for (const entry of data.tree || []) objects[`${prefix}:${entry.path}`] = { type: MODES[entry.mode] || `mode ${entry.mode}`, size: entry.size ?? null };
+  return { objects, complete: data.truncated !== true };
 }
 
 async function main(argv) {
-  const dryRun = argv.includes('--dry-run');
-  const reviewedIndex = argv.indexOf('--reviewed');
-  const reviewedArg = reviewedIndex >= 0 ? argv[reviewedIndex + 1] : undefined;
-  const positional = argv.filter((a, i) => !a.startsWith('--') && i !== reviewedIndex + 1);
-  const [repo, numberArg] = positional;
-  const number = Number(numberArg);
+  const { repo, number, dryRun, reviewed: reviewedArg } = parseArgs(argv);
   if (!repo || !Number.isInteger(number)) throw new Error('usage: autonomous-merge.mjs <owner/repo> <number> --reviewed <sha> [--dry-run]');
   if (!TOKEN && !dryRun) throw new Error('GITHUB_TOKEN is required');
 
@@ -222,12 +253,14 @@ async function main(argv) {
   const files = await listAll(`/repos/${repo}/pulls/${number}/files`);
   const reviews = await listAll(`/repos/${repo}/pulls/${number}/reviews`);
   const sha = pr.head.sha;
-  const types = await fetchTypes(repo, files, sha);
+  const head = await fetchTree(repo, sha, 'head');
+  const base = await fetchTree(repo, pr.base.sha, 'base');
+  const objects = { ...head.objects, ...base.objects };
   const checkRuns = await listAll(`/repos/${repo}/commits/${sha}/check-runs`, 'check_runs');
   const statuses = await listAll(`/repos/${repo}/commits/${sha}/status`, 'statuses');
   const reviewedSha = reviewedArg || (pr.body || '').match(REVIEWED_HEAD)?.[1];
 
-  const result = evaluate({ repo, pr, files, types, reviews, checkRuns, statuses, reviewedSha });
+  const result = evaluate({ repo, pr, files, objects, reviews, checkRuns, statuses, reviewedSha, treesComplete: head.complete && base.complete });
   console.log(`${repo}#${number} "${pr.title}" head ${sha.slice(0, 7)}: ${result.eligible ? 'ELIGIBLE' : 'NOT ELIGIBLE'} for autonomous merge`);
   for (const r of result.reasons) console.log(`  - ${r}`);
   if (!result.eligible) return 2;
