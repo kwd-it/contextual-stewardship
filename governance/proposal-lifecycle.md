@@ -29,7 +29,7 @@ State is carried by labels so it can be filtered. One `status:` label per issue.
 | `status:declined` | Product owner declined; reason recorded; closed | Product owner, or steward on instruction |
 | `status:stale` | Closed by the steward for inactivity, not a decision; may be reopened at any time | Steward |
 
-Other labels: `authority:autonomous`, `authority:propose-first`, `authority:human`; `repo:contextualwp`, `repo:housebuilder-pack`, `repo:console`, `repo:stewardship`; `type:maintenance`, `type:proposal`, `type:decision`.
+Other labels: `authority:autonomous`, `authority:propose-first`, `authority:human`; `repo:contextualwp`, `repo:housebuilder-pack`, `repo:console`, `repo:stewardship`; `type:maintenance`, `type:proposal`, `type:decision`; `type:approvals` marks the single automated summary issue (`owner-notifications.md`) and is never used for anything else.
 
 ## Lifecycle
 

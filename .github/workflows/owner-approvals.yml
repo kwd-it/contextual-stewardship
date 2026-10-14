@@ -1,0 +1,31 @@
+name: Owner approvals
+
+# Maintains the "Pending owner decisions" summary issue and notifies the product
+# owner only when a new action item appears. See governance/owner-notifications.md.
+
+on:
+  schedule:
+    - cron: '23 */6 * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  issues: write
+
+concurrency:
+  group: owner-approvals
+  cancel-in-progress: false
+
+jobs:
+  summarise:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          sparse-checkout: tooling/approvals
+      - name: Update the summary issue and notify on new items
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          OWNER_LOGIN: kwdit
+        run: node tooling/approvals/owner-approvals.mjs

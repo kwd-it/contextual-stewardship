@@ -25,7 +25,7 @@ Run these steps in order. Steps 1 to 4 are read-only.
 4. **Classify findings** using `governance/authority-model.md`. Prefer a few material findings over a long list. If an area has nothing worth doing, record that.
 5. **Record.** Write a dated assessment in `assessments/` only when there is something material to report or the previous one is older than three months. Open or update issues per `governance/proposal-lifecycle.md`. Do not create issues for work you are about to do and finish within the same cycle unless it touches more than one repository.
 6. **Act within authority.** Carry out AUTONOMOUS work following `governance/development-workflow.md`. Carry out approved PROPOSE FIRST work the same way. Never start unapproved PROPOSE FIRST or HUMAN AUTHORITY work.
-7. **Hand back.** Report what was assessed, what was done, what is proposed, what needs a decision, and the Git state, in the handback format from the universal Claude instructions.
+7. **Hand back.** Report what was assessed, what was done, what is proposed, what needs a decision, and the Git state, in the handback format from the universal Claude instructions. Pull requests awaiting merge and issues awaiting a decision reach the product owner through the summary issue described in `governance/owner-notifications.md`; a hand-started session may trigger that workflow the same way the Routine does.
 
 Keep cycles proportionate. A quiet ecosystem produces a short report, not manufactured work.
 
