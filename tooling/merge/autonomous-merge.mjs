@@ -71,8 +71,39 @@ function pathReasons(path) {
   return [];
 }
 
-// Headings in a set of diff lines (without their +/- prefix): ATX ("## Title") and
-// Setext ("Title" underlined by === or ---).
+// The "before" and "after" views of a unified diff (GitHub's patch field, which has
+// hunk headers but no file headers): context lines appear in both, removed lines only
+// in before, added lines only in after. Hunks are separated by an empty line so that
+// a heading cannot be assembled across hunks.
+export function hunkViews(patch) {
+  const before = [];
+  const after = [];
+  for (const line of (patch || '').split('\n')) {
+    if (line.startsWith('@@')) { before.push(''); after.push(''); continue; }
+    if (line.startsWith('\\')) continue;
+    const text = line.slice(1);
+    if (line.startsWith('+')) after.push(text);
+    else if (line.startsWith('-')) before.push(text);
+    else { before.push(text); after.push(text); }
+  }
+  return { before, after };
+}
+
+// Headings that differ between two views, as a multiset difference, so a heading
+// whose text changed above an unchanged Setext underline, or whose underline was
+// removed, is reported.
+export function changedHeadings(beforeLines, afterLines) {
+  const count = (list) => list.reduce((m, h) => m.set(h, (m.get(h) || 0) + 1), new Map());
+  const b = count(headingsIn(beforeLines));
+  const a = count(headingsIn(afterLines));
+  const changed = [];
+  for (const [h, n] of a) if (n > (b.get(h) || 0)) changed.push(h);
+  for (const [h, n] of b) if (n > (a.get(h) || 0)) changed.push(h);
+  return changed;
+}
+
+// Headings in a list of lines: ATX ("## Title") and Setext ("Title" underlined by
+// === or ---).
 export function headingsIn(lines) {
   const out = [];
   for (let i = 0; i < lines.length; i += 1) {
@@ -114,8 +145,9 @@ export function checkFile(file, objects = {}) {
     if (!emptyText) reasons.push(`${path}: no diff content available`);
   }
   const patch = hasPatch ? file.patch : '';
-  const added = patch.split('\n').filter((l) => l.startsWith('+') && !l.startsWith('+++')).map((l) => l.slice(1));
-  const removed = patch.split('\n').filter((l) => l.startsWith('-') && !l.startsWith('---')).map((l) => l.slice(1));
+  const lines = patch.split('\n').filter((l) => !l.startsWith('@@') && !l.startsWith('\\'));
+  const added = lines.filter((l) => l.startsWith('+')).map((l) => l.slice(1));
+  const removed = lines.filter((l) => l.startsWith('-')).map((l) => l.slice(1));
   if (/^tests\//.test(path)) {
     if (added.some((l) => WEAKENING.test(l))) reasons.push(`${path}: adds a skip, todo or only marker`);
     const removedAssertions = removed.filter((l) => ASSERTION.test(l)).length;
@@ -126,8 +158,8 @@ export function checkFile(file, objects = {}) {
     if (removedTests > addedTests) reasons.push(`${path}: removes tests (${removedTests} removed, ${addedTests} added)`);
   }
   if (CHANGELOG.test(path) || (previous && CHANGELOG.test(previous))) {
-    const headings = [...headingsIn(added), ...headingsIn(removed)];
-    if (headings.some((h) => !PERMITTED_CHANGELOG_HEADING.test(h))) reasons.push(`${path}: changes a heading other than Unreleased or a Keep a Changelog category`);
+    const { before, after } = hunkViews(patch);
+    if (changedHeadings(before, after).some((h) => !PERMITTED_CHANGELOG_HEADING.test(h))) reasons.push(`${path}: changes a heading other than Unreleased or a Keep a Changelog category`);
     if (previous && previous !== path) reasons.push(`${path}: renames a changelog`);
   }
   return reasons;

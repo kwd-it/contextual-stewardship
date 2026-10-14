@@ -3,7 +3,7 @@
 
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { evaluate, checkFile, headingsIn, parseArgs } from './autonomous-merge.mjs';
+import { evaluate, checkFile, headingsIn, hunkViews, changedHeadings, parseArgs } from './autonomous-merge.mjs';
 
 const SHA = 'a65c96f825aedb7e6c250cd30927d811c686b801';
 
@@ -63,7 +63,8 @@ test('documentation-only change qualifies, including docs/ and README', () => {
 test('Unreleased and Keep a Changelog category headings are fine; any other heading change is not', () => {
   assert.equal(evaluate(input({ files: [file('CHANGELOG.md', '+## [Unreleased]\n+- note')] })).eligible, true);
   assert.equal(evaluate(input({ files: [file('docs/CHANGELOG.md', '+### Changed\n+- note\n+### Fixed\n+- fix')] })).eligible, true);
-  for (const patch of ['+## [1.4.0] - 2026-10-14', '+## Release 1.2.3', '+## v0.4.9', '-## Unreleased\n+## 0.4.9', '+### Notes', '+## 2026-10-14', '+1.4.0 - 2026-10-14\n+---', '+Release 1.4.0\n+=====']) {
+  // a Setext heading changed above an unchanged underline, and one removed with its underline
+  for (const patch of ['+## [1.4.0] - 2026-10-14', '+## Release 1.2.3', '+## v0.4.9', '-## Unreleased\n+## 0.4.9', '+### Notes', '+## 2026-10-14', '+1.4.0 - 2026-10-14\n+---', '+Release 1.4.0\n+=====', '@@ -1,3 +1,3 @@\n-Unreleased\n+1.4.0\n ---\n - note', '@@ -1,4 +1,2 @@\n-Release 1.4.0\n----\n - note']) {
     const r = evaluate(input({ files: [file('CHANGELOG.md', patch)] }));
     assert.equal(r.eligible, false, patch);
     assert.match(r.reasons.join(), /changes a heading other than Unreleased or a Keep a Changelog category/);
@@ -139,6 +140,16 @@ test('renames are judged on both paths and may not move tests out of tests/', ()
   const r = evaluate(input({ files: [renamedChangelog] }));
   assert.match(r.reasons.join(), /changes a heading other than Unreleased/);
   assert.match(r.reasons.join(), /renames a changelog/);
+});
+
+test('unchanged headings, moved text and horizontal rules do not count as heading changes', () => {
+  // context lines (unchanged) are not changes; an unchanged Setext heading next to an edit is fine
+  assert.equal(evaluate(input({ files: [file('CHANGELOG.md', '@@ -1,3 +1,4 @@\n Unreleased\n ---\n+- a fix\n - note')] })).eligible, true);
+  // a horizontal rule after a list item or a blank line is not a heading underline
+  assert.equal(evaluate(input({ files: [file('CHANGELOG.md', '+- item\n+---\n+\n+---')] })).eligible, true);
+  assert.deepEqual(changedHeadings(['Unreleased', '---'], ['1.4.0', '---']), ['1.4.0', 'Unreleased']);
+  assert.deepEqual(changedHeadings(['## A', '## B'], ['## B', '## A']), []);
+  assert.deepEqual(hunkViews('@@ -1,2 +1,2 @@\n-old\n+new\n ctx\n\\ No newline at end of file'), { before: ['', 'old', 'ctx'], after: ['', 'new', 'ctx'] });
 });
 
 test('Setext and ATX headings are both recognised', () => {
