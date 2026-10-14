@@ -29,7 +29,7 @@ A pull request is notified again when its head commit changes, or when a complet
 
 ### Triggers
 
-A new or changed workflow file only becomes dispatchable once it is on `main`; GitHub returns 404 for a dispatch against a branch that is the only place the file exists.
+A new workflow file only becomes dispatchable once it exists on `main`; a dispatch against a branch that is the only place the file exists returned 404 on 2026-10-14. Changes to an existing workflow can be run from a branch with `--ref`.
 
 - **Schedule:** every six hours (`23 */6 * * *` UTC). A run that finds nothing new changes nothing visible except the "last checked" time in the issue body.
 - **End of a Routine cycle:** the Routine dispatches the workflow after its handback (see `governance/routine.md`, "Output") so the owner hears within minutes of a cycle finishing. If the dispatch fails, the schedule covers it.
