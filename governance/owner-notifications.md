@@ -29,6 +29,8 @@ A pull request is notified again when its head commit changes, or when a complet
 
 ### Triggers
 
+A new workflow file only becomes dispatchable once it exists on `main`; a dispatch against a branch that is the only place the file exists returned 404 on 2026-10-14. Changes to an existing workflow can be run from a branch with `--ref`.
+
 - **Schedule:** every six hours (`23 */6 * * *` UTC). A run that finds nothing new changes nothing visible except the "last checked" time in the issue body.
 - **End of a Routine cycle:** the Routine dispatches the workflow after its handback (see `governance/routine.md`, "Output") so the owner hears within minutes of a cycle finishing. If the dispatch fails, the schedule covers it.
 - **Manual:** `gh workflow run owner-approvals.yml -R kwd-it/contextual-stewardship` or the "Run workflow" button, for testing. Locally, `GITHUB_TOKEN=$(gh auth token) node tooling/approvals/owner-approvals.mjs --dry-run` prints the body and the comment that would be posted and writes nothing.
@@ -43,4 +45,5 @@ GitHub account settings decide how a mention reaches the owner; the workflow can
 
 - **Participating, @mentions and custom → Notify me: Email.** This delivers the summary issue's mention by email. It was already on.
 - **Actions → Notify me: Email (Failed workflows only).** This is what emailed the first scheduled cycle's transient CI failure, because GitHub notifies the actor who triggered a run. Turning this email off removes that noise; the summary issue carries anything that genuinely needs the owner. Leave it on if a failed run of the approvals workflow itself should still arrive by email: notifications for a scheduled workflow go to the user who created the workflow (GitHub documentation, "Notifications for workflow runs", read 2026-10-14).
+- **Verifying delivery.** With the setting above on Email only (no "on GitHub"), a mention never appears in the web inbox or the REST `notifications` feed; only the email proves delivery. What GitHub does expose is the issue timeline, which records a `mentioned` and a `subscribed` event for the owner when the comment is posted (seen for the first notification on 2026-10-14 at 04:54:07 UTC, comment on issue #6).
 - **Customize email updates → Your own updates** is deliberately left off. Turning it on would email the owner about every pull request the Routine opens with their account, but also about everything they do themselves; it was rejected as the mechanism for that reason.
