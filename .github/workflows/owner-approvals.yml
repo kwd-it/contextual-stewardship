@@ -1,7 +1,8 @@
 name: Owner approvals
 
 # Maintains the "Pending owner decisions" summary issue and notifies the product
-# owner only when a new action item appears. See governance/owner-notifications.md.
+# owner only when a new decision or human-only blocker appears; scheduled runs batch
+# new decisions (they read github.event_name). See governance/owner-notifications.md.
 
 on:
   schedule:

@@ -24,7 +24,8 @@ State is carried by labels so it can be filtered. One `status:` label per issue.
 | `status:needs-decision` | Blocked on a specific product, legal or authority decision named in the issue | Product owner |
 | `status:approved` | Product owner has approved the stated scope; the steward may implement | Steward |
 | `status:in-progress` | A task branch exists | Steward |
-| `status:blocked` | Cannot proceed; the blocker is named in the latest comment | Whoever clears the blocker |
+| `status:deferred` | Deliberately parked: an optional improvement or idea with no deadline, kept open for the record with its revisit trigger stated in the issue. Not an owner decision and never notified | Steward, back to `status:proposed` when the trigger is met; product owner at any time |
+| `status:blocked` | Cannot proceed; the blocker is named in the latest comment. Also labelled `authority:human` when only the product owner can clear it | Whoever clears the blocker |
 | `status:done` | Implemented, reviewed and landed as the authority allows; closed with links | Steward closes |
 | `status:declined` | Product owner declined; reason recorded; closed | Product owner, or steward on instruction |
 | `status:stale` | Closed by the steward for inactivity, not a decision; may be reopened at any time | Steward |
@@ -36,14 +37,16 @@ Other labels: `authority:autonomous`, `authority:propose-first`, `authority:huma
 1. **Steward identifies work** during a cycle and classifies it.
 2. **AUTONOMOUS work** that fits within the cycle does not need an issue first. The steward does it, and the pull request in the product repository is the record. If it spans repositories or cannot finish in the cycle, it gets an issue with `authority:autonomous`.
 3. **PROPOSE FIRST work** gets an issue using the proposal template, labelled `status:proposed`. The steward does nothing further until the label changes.
-4. **Product owner decides** by changing the label to `status:approved` or `status:declined`, or by commenting with a narrower scope. An approval in a task brief counts equally; the steward then updates the label.
+4. **Product owner decides** by changing the label to `status:approved`, `status:deferred` or `status:declined`, or by commenting with a narrower scope. An approval or deferral in a task brief counts equally; the steward then updates the label and, for a deferral, records the revisit trigger in a comment.
 5. **Steward implements** approved work per `development-workflow.md`, moves the issue to `status:in-progress`, links the branch and pull request, and on completion to `status:done` with the handback summary as the closing comment.
 6. **Decisions** that will matter beyond the issue are copied into `decisions/README.md` in one or two lines with the date and the issue link.
 7. **HUMAN AUTHORITY items** the steward notices (for example a licence inconsistency) get an issue labelled `authority:human` and `status:needs-decision`, stating exactly what decision is needed and the steward's recommendation. The steward never resolves them itself.
+8. **Optional ideas with no deadline** (no vendor or platform date, no security or compatibility driver, nothing broken) are recorded by the steward directly as `status:deferred`, with the evidence and a revisit trigger, rather than as a proposal for the owner. A deferral approves nothing: the steward still needs `status:approved` before any implementation. When a trigger is met (materially new evidence, a relevant retirement or end-of-life date, or an owner request), the steward moves the issue to `status:proposed` with the new evidence, which notifies the owner.
+9. **Blockers.** A problem the steward can resolve itself (a failing test, a review to rerun, a merge to retry) is not escalated. Only a blocker the owner alone can clear (credentials, accounts, spend, access, an authority question) is labelled `status:blocked` plus `authority:human`, which notifies the owner promptly.
 
 ## Keeping it light
 
 - No milestones, projects or boards unless the product owner asks.
 - One issue per decision or piece of work. Do not open issues for things recorded in an assessment unless they need tracking beyond the assessment.
-- Close rather than accumulate. A `status:proposed` issue untouched for six months is raised in the next assessment and, if still unanswered a cycle later, closed as `status:stale`. Stale is an administrative closure and is never recorded as a decision. Issues labelled `status:needs-decision` are never closed for inactivity; they are re-raised in every assessment until the owner decides.
+- Close rather than accumulate. A `status:proposed` issue untouched for six months is raised in the next assessment and, if still unanswered a cycle later, closed as `status:stale`. Stale is an administrative closure and is never recorded as a decision. Issues labelled `status:needs-decision` are never closed for inactivity; they are re-raised in every assessment until the owner decides. Issues labelled `status:deferred` are not closed for inactivity or re-raised; the steward checks their revisit triggers when assessing the area they concern.
 - Never put anything in an issue that could not appear in this public repository.
