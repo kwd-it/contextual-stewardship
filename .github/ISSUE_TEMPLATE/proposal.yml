@@ -10,6 +10,34 @@ body:
       description: One plain-English sentence for the product owner, phrased as the question they are being asked. Used verbatim in their notification.
     validations:
       required: true
+  - type: input
+    id: why-it-matters
+    attributes:
+      label: Why it matters
+      description: "One plain sentence on why this needs a decision now, or at all."
+    validations:
+      required: true
+  - type: input
+    id: owner-recommendation
+    attributes:
+      label: Owner recommendation
+      description: "One plain sentence with the single recommended answer. Detail and alternatives go further down."
+    validations:
+      required: true
+  - type: input
+    id: urgency
+    attributes:
+      label: Urgency
+      description: "Can wait, or the date by which it matters and why. Left empty, the notification says Can wait."
+    validations:
+      required: false
+  - type: input
+    id: if-nothing-is-done
+    attributes:
+      label: If nothing is done
+      description: "One plain sentence on what happens if the owner does not answer."
+    validations:
+      required: true
   - type: textarea
     id: problem
     attributes:

@@ -50,7 +50,7 @@ For a pull request the Routine judges eligible under "Autonomous merge of docume
 1. writes in the description, in addition to the review record, `Reviewed head: <full sha>`, `Merge: automatic under D-016 once checks pass.` and `Owner summary: <one plain sentence>` (see `owner-notifications.md`);
 2. waits for the head's checks to complete, polling for up to fifteen minutes;
 3. runs `node /home/user/contextual-stewardship/tooling/merge/autonomous-merge.mjs <owner/repo> <number> --reviewed <sha> --via-gh` from this repository (`--via-gh` sends the requests through the authenticated `gh` command, which honours the environment's proxy) and accepts the result: exit 0 merged (the tool leaves the audit comment), exit 2 not eligible (reasons printed; the run does not argue with the tool);
-4. on exit 2, or when the merge call is refused, edits the `Merge:` line to `Merge: owner (automatic merge not possible: <reason>).` so the owner is notified, and reports it in the handback.
+4. on exit 2, or when the merge call is refused, edits the `Merge:` line to `Merge: owner (automatic merge not possible: <reason>).` and adds the owner fields of `development-workflow.md`, so the owner is notified, and reports it in the handback.
 
 At the start of a cycle the run also re-evaluates its own earlier open pull requests whose description carries `Merge: automatic` and a `Reviewed head:` line, and runs the tool on each; a head that no longer matches the reviewed commit is ineligible and is handed to the owner the same way. Each pull request is processed once per run; a pull request that is already merged is skipped. Merged branches are retained (`development-workflow.md`).
 
@@ -65,7 +65,8 @@ At the start of a cycle the run also re-evaluates its own earlier open pull requ
 If the review mechanism cannot run with legitimate authentication in the Routine's environment, the run operates in **safe stewardship mode**:
 
 - it assesses, verifies external facts, and creates or updates issues and proposals as normal; its `ecosystem/` and `assessments/` updates go to a pushed task branch and pull request in this repository awaiting review, as described under "Validation and review";
-- it classifies AUTONOMOUS work and records each item as queued, in an issue labelled `authority:autonomous` and `status:blocked`, with the blocker named as "Codex review unavailable in the Routine environment";
+- it classifies AUTONOMOUS work and records each item as queued, in an issue labelled `authority:autonomous` and `status:blocked`, with the blocker named as "Codex review unavailable in the Routine environment" (these do not notify the owner);
+- when the cause needs the owner (the credential, its spending limit, or the environment setting), it opens one issue labelled `authority:human` and `status:blocked` saying exactly what the owner must do, or updates the one already open, so the owner is notified once (`owner-notifications.md`);
 - it does **not** modify any product repository, create branches there, or open implementation pull requests;
 - it says so plainly in the handback.
 
@@ -138,7 +139,7 @@ Every run ends with a concise summary, in the handback format of the universal i
 
 If a category has nothing in it, the run says so rather than inventing content. The run's record in this repository is the durable output; the summary is for the product owner's attention.
 
-The product owner is not notified by the summary itself. After the handback the run triggers the owner-approvals workflow (`governance/owner-notifications.md`) with `gh api -X POST repos/kwd-it/contextual-stewardship/actions/workflows/owner-approvals.yml/dispatches -f ref=main`, so that the summary issue is refreshed and the owner is mentioned if new decisions are waiting. A failed dispatch is reported in the handback and not retried; the workflow's own schedule covers it within six hours.
+The product owner is not notified by the summary itself. After the handback the run triggers the owner-approvals workflow (`governance/owner-notifications.md`) with `gh api -X POST repos/kwd-it/contextual-stewardship/actions/workflows/owner-approvals.yml/dispatches -f ref=main`, so that the summary issue is refreshed and the owner receives one notification covering every new decision of the cycle, or none if nothing new needs them. Completed work, automatic merges and recoverable problems are recorded in the handback and the summary issue, never sent to the owner as a notification. Proposals and blockers carry the plain-English owner fields described in `owner-notifications.md`. A failed dispatch is reported in the handback and not retried; the workflow's own schedule covers it within six hours.
 
 ## Changing this Routine
 
